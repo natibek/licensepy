@@ -1,5 +1,5 @@
+import re
 import subprocess
-import sys
 from importlib.metadata import distribution
 
 # dependencies = subprocess.Popen(["pip", "freeze"], stdout=subprocess.PIPE)
@@ -14,20 +14,43 @@ common_licenses = [
 
 
 def get_dependencies() -> list[str]:
-    dependencies = subprocess.check_output(["pip3", "freeze"]).decode("utf-8")
+    dependencies = subprocess.check_output(["python", "-m" "pip", "freeze"]).decode(
+        "utf-8"
+    )
     dependencies = [dep.split("==")[0] for dep in dependencies.split("\n") if dep]
     return dependencies
 
 
-def get_package_requirements(package_name: str) -> list[str]:
-    package_info = subprocess.check_output(["pip3", "show", package_name]).decode(
-        "utf-8"
-    )
+print(distribution("pandas").metadata.get_all("Requires-Dist"))
 
-    for info in package_info.split("\n"):
-        if info.startswith("Requires"):
-            package_requirements = info.split(": ")[1].split(", ")
-            break
+
+def get_package_requirements(package_name: str) -> list[str]:
+    # pip show is slow in some cases since license outputs are long
+    # package_info = subprocess.check_output(
+    #     ["python", "-m", "pip", "show", package_name]
+    # ).decode("utf-8")
+
+    # for info in package_info.split("\n"):
+    #     if info.startswith("Requires"):
+    #         package_requirements = info.split(": ")[1].split(", ")
+    #         break
+
+    package_requirements = []
+    if req_info := distribution(package_name).metadata.get_all("Requires-Dist"):
+        package_requirements = [
+            re.split(r"[<>=~\(;]", req)[0].strip()
+            for req in req_info
+            if ";" not in req or "; python_version" in req
+            # requirements for only certain python versions are noted with ; python_version
+        ]
+
+    #    print(
+    #        set(other_req),
+    #        package_requirements,
+    #        len(list(set(other_req))) == len(package_requirements),
+    #    )
+    #
+    print(package_requirements)
     return package_requirements
 
 
@@ -47,8 +70,9 @@ def get_licenses():
     for package in dependencies:
         print(f"{package}: {get_license(package)}")
         licenses[package] = get_license(package)
-
-        print(f"{package}: {get_package_requirements(package)}")
+        get_package_requirements(package)
 
 
 get_licenses()
+
+# depth of recursion with -r flag
