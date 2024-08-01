@@ -19,9 +19,14 @@ setuptools.setup(
     author_email="nwtbekele@gmail.com",
     python_requires=(">=3.11.0"),
     install_requires=requirements,
-    license="N/A",
+    license="Apache 2.0",
     description=description,
     long_description=long_description,
     packages=["src"],
     scripts=["scr/pylicense"],
+    classifiers=[
+        "License :: OSI Approved :: Apache 2.0",
+        "Programming Language :: Python",
+        "Operating System :: OS Independent",
+    ],
 )
