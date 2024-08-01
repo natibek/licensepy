@@ -4,8 +4,8 @@ import subprocess
 from collections import Counter
 from importlib.metadata import distribution
 
-from Package import Package
-from pretty_string import *
+from .Package import Package
+from .pretty_string import *
 
 
 class ProjectLicenses:
@@ -41,7 +41,9 @@ class ProjectLicenses:
         dependencies = subprocess.check_output(
             ["python", "-m" "pip", "freeze"], text=True
         )
-        dependencies = [dep.split("==")[0] for dep in dependencies.split("\n") if dep]
+        dependencies = [
+            re.split(r"==|@", dep)[0].strip() for dep in dependencies.split("\n") if dep
+        ]
         return dependencies
 
     def _matches_python_version(self, req_info: str) -> bool:

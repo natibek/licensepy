@@ -6,8 +6,7 @@ from typing import Any
 
 import tomlkit
 
-from pretty_string import *
-from ProjectLicense import ProjectLicenses
+from .ProjectLicense import ProjectLicenses
 
 
 def run_pylicense():
