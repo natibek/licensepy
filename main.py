@@ -18,7 +18,7 @@ class Package:
         self.license = license  # license of the package
 
     def __str__(self) -> str:
-        return f"{self.name} -> {self.license}"
+        return f"{self.name} ({self.license})"
 
     @property
     def requirements(self) -> list[str]:
@@ -33,11 +33,21 @@ class Package:
 class ProjectLicenses:
     """Used to store project's dependencies and licenses of said dependencies."""
 
-    def __init__(self, recursive: bool, to_avoid: list[str] | None) -> None:
+    def __init__(
+        self,
+        recursive: bool,
+        by_package: bool,
+        print_fails: bool,
+        to_avoid: list[str] | None,
+    ) -> None:
         self._recursive: bool = (
             recursive  # cli argument for recursive dependencies fetchign
         )
-        self.to_avoid = to_avoid if to_avoid else []  # list of licenses to avoid
+        self.by_package = by_package  # print by package
+        self.print_fails = (
+            print_fails  # print only packages whose licenses want to be avoided
+        )
+        self.to_avoid = to_avoid if to_avoid else ["MIT"]  # list of licenses to avoid
 
         self._python_version: tuple[str, str, str] = platform.python_version_tuple()
         self._packages: dict[str, Package] = {}  # map package name to object
@@ -163,7 +173,6 @@ class ProjectLicenses:
         """Recursively find all the packages each of the direct dependencies of the project require."""
 
         queue = self._project_dependencies[:]
-
         while queue:
             package = queue.pop()
 
@@ -178,21 +187,51 @@ class ProjectLicenses:
 
     def pretty_print(self):
         """Pretty print the licenses of all the dependencies of the project."""
-        packages = sorted(list(self._packages.values()), key=lambda x: x.license)
+
+        packages = (
+            sorted(list(self._packages.values()), key=lambda x: x.license)
+            if not self.by_package
+            else sorted(self._packages.values(), key=lambda x: x.name.lower())
+        )
         license_count = Counter([package.license for package in packages])
 
         last_license = None
+        print_license = False
         for pack in packages:
             pack_text = ""
-            if last_license != pack.license:
-                pack_text += f"\n---{pack.license} {license_count[pack.license]}---\n"
-            last_license = pack.license
-            pack_text += f"\t{pack.name}"
+            if self.by_package:
+                mark = "\N{check mark}" if pack.license not in self.to_avoid else "x"
 
-            if self._recursive and pack.requirements:
+                print_license = (
+                    self.print_fails and pack.license in self.to_avoid
+                ) or not self.print_fails
+                if print_license:
+                    pack_text += f"{mark}  {pack}"
+            else:
+                if last_license != pack.license:
+                    # u'/u2713'
+                    mark = (
+                        "\N{check mark}" if pack.license not in self.to_avoid else "x"
+                    )
+
+                    print_license = (
+                        self.print_fails and pack.license in self.to_avoid
+                    ) or not self.print_fails
+                    if print_license:
+                        pack_text += f"\n---{pack.license} [{license_count[pack.license]}]---  {mark}\n"
+
+                last_license = pack.license
+
+                if (
+                    self.print_fails and pack.license in self.to_avoid
+                ) or not self.print_fails:
+                    pack_text += f"\t{pack.name}"
+
+            if self._recursive and pack.requirements and print_license:
                 pack_text += f"\t-> {pack.requirements}"
 
-            print(pack_text)
+            if print_license:
+                print(pack_text)
         print()
 
     def check_for_bad_license(self) -> int:
@@ -212,6 +251,7 @@ class ProjectLicenses:
 
 
 def run_pylicense():
+    """Run the pylicense algorithm."""
 
     to_avoid = None
     if Path("pyproject.toml").is_file():
@@ -240,10 +280,25 @@ def run_pylicense():
         default=False,
         help="Don't print any outputs.",
     )
+    parser.add_argument(
+        "--by-package",
+        action="store_true",
+        default=False,
+        help="Group by package when printing.",
+    )
+    parser.add_argument(
+        "--print-fails",
+        "-f",
+        action="store_true",
+        default=False,
+        help="Only print the packages whose licenses want to be avoided",
+    )
 
     args = parser.parse_args()
 
-    project = ProjectLicenses(args.recursive, to_avoid)
+    project = ProjectLicenses(
+        args.recursive, args.by_package, args.print_fails, to_avoid
+    )
     project.get_project_dependencies_and_licenses()
 
     if args.recursive:
@@ -255,7 +310,7 @@ def run_pylicense():
     return project.check_for_bad_license()
 
 
-# better printing
+# color code the licenses
 # testing
 
 if __name__ == "__main__":
