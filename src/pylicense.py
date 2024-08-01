@@ -1,10 +1,12 @@
+#!/usr/bin/env python3
+
 import argparse
 from pathlib import Path
 from typing import Any
 
 import tomlkit
-from pretty_string import *
 
+from pretty_string import *
 from ProjectLicense import ProjectLicenses
 
 
