@@ -4,14 +4,14 @@ import setuptools
 
 __version__ = "0.0.1"
 
-description = "pylicense is a license check tool for project package dependencies."
+description = "licensepy is a license check tool for project package dependencies."
 
 long_description = io.open("README.md", encoding="utf-8").read()
 
 setuptools.setup(
-    name="pylicense",
+    name="licensepy",
     version=__version__,
-    url="https://github.com/natibek/pylicense/tree/main",
+    url="https://github.com/natibek/licensepy/tree/main",
     author="Nathnael Bekele",
     author_email="nwtbekele@gmail.com",
     python_requires=(">=3.11.0"),
@@ -24,7 +24,7 @@ setuptools.setup(
     packages=["src"],
     entry_points={
         "console_scripts": [
-            "pylicense=src.pylicense:run_pylicense",
+            "licensepy=src.licensepy:run_licensepy",
         ],
     },
     classifiers=[

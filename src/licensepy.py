@@ -9,14 +9,14 @@ import tomlkit
 from .ProjectLicense import ProjectLicenses
 
 
-def run_pylicense():
-    """Run the pylicense algorithm."""
+def run_licensepy():
+    """Run the licensepy algorithm."""
 
     to_avoid = None
     if Path("pyproject.toml").is_file():
         data: dict[str, Any] = tomlkit.parse(Path("pyproject.toml").read_text())
-        if "pylicense" in data and "avoid" in data["pylicense"]:
-            to_avoid = data["pylicense"]["avoid"]
+        if "licensepy" in data and "avoid" in data["licensepy"]:
+            to_avoid = data["licensepy"]["avoid"]
             assert isinstance(
                 to_avoid, list
             ), f"Expected avoid to have type list[str]. Found {type(to_avoid)}"
@@ -74,4 +74,4 @@ def run_pylicense():
 # testing
 
 if __name__ == "__main__":
-    exit(run_pylicense())
+    exit(run_licensepy())
