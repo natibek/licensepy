@@ -8,6 +8,10 @@ import tomlkit
 
 from .ProjectLicense import ProjectLicenses
 
+# conda search --info numpy==1.26.4=py312hc5e2394_0
+# c conda-forge
+# conda list numpy to get the infor
+
 
 def run_licensepy():
     """Run the licensepy algorithm."""
