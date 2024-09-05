@@ -1,2 +1,2 @@
-Python License Check Module
+Python License Check Module.
 
