@@ -17,6 +17,7 @@ setuptools.setup(
     license="Apache 2.0",
     description=description,
     long_description=open("README.md").read(),
+    long_description_content_type="text/markdown",
     packages=["src"],
     entry_points={
         "console_scripts": [

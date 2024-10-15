@@ -4,4 +4,4 @@ dep.txt
 pyproject.toml
 __pycache__
 dist/
-pylicense.egg-info
+licensepy.egg-info
