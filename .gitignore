@@ -1,5 +1,6 @@
 .venv
-.env
+.testvenv
+dep.txt
 __pycache__
 dist/
 pylicense.egg-info
