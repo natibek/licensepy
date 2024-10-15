@@ -47,14 +47,14 @@ def run_licensepy():
         "--by-package",
         action="store_true",
         default=False,
-        help="Group by package when printing.",
+        help="Group output by alphabetical order of package names.",
     )
     parser.add_argument(
         "--print-fails",
         "-f",
         action="store_true",
         default=False,
-        help="Only print the packages whose licenses want to be avoided",
+        help="Only print the packages whose licenses are flagged to be avoided.",
     )
 
     args = parser.parse_args()

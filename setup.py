@@ -1,12 +1,8 @@
-import io
-
 import setuptools
 
-__version__ = "0.0.1"
+from src._version import __version__
 
-description = "licensepy is a license check tool for project package dependencies."
-
-long_description = io.open("README.md", encoding="utf-8").read()
+description = "licencepy is a Python dependency license check library with recursive dependency handling for pip."
 
 setuptools.setup(
     name="licensepy",
@@ -20,7 +16,7 @@ setuptools.setup(
     ],
     license="Apache 2.0",
     description=description,
-    long_description=long_description,
+    long_description=open("README.md").read(),
     packages=["src"],
     entry_points={
         "console_scripts": [
@@ -29,8 +25,8 @@ setuptools.setup(
     },
     classifiers=[
         "Development Status :: 4 - Beta",
-        "License :: OSI Approved :: Apache 2.0",
-        "Programming Language :: Python",
+        "License :: OSI Approved :: Apache Software License",
+        "Programming Language :: Python :: 3",
         "Operating System :: OS Independent",
     ],
 )
