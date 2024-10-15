@@ -20,11 +20,11 @@ pip3 install licensepy
 ## Command Line Arguments
 
 1. -r, --recursive: Recursively find all the dependencies of the project and their licences.
-   ![](https://raw.githubusercontent.com/natibek/licensepy/main/imgs/licesepy_recursive.png)
+   ![](https://raw.githubusercontent.com/natibek/licensepy/main/imgs/licensepy_recursive.png)
    - Recusive dependencies will have the color red if they have licenses that have been flagged to avoid and green otherwise.
-     ![](https://raw.githubusercontent.com/natibek/licensepy/main/imgs/licesepy_recursive_avoid_mit.png)
+     ![](https://raw.githubusercontent.com/natibek/licensepy/main/imgs/licensepy_recursive_avoid_mit.png)
 1. -by-package: Groupt output by packages in alphabetial order.
-   ![](https://raw.githubusercontent.com/natibek/licensepy/main/imgs/licesepy_output_by_package.png)
+   ![](https://raw.githubusercontent.com/natibek/licensepy/main/imgs/licensepy_output_by_package.png)
 1. -s, silent: Silence all outputs.
 1. -f, print-fails: Only print the packages whose licenses are flagged to be avoided.
 
