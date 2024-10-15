@@ -1,8 +1,8 @@
 # licensepy: Python License Check Module.
 
-***licensepy*** is a Python dependency license check library with recursive dependency handling for pip (and conda in the future). This package has recusive dependency checks that are not offered by many existing license check libraries. By default, the output will gorup packages by their licenses.
+**_licensepy_** is a Python dependency license check library with recursive dependency handling for pip (and conda in the future). This package has recusive dependency checks that are not offered by many existing license check libraries. By default, the output will gorup packages by their licenses.
 
-![Img](./imgs/licensepy_output.png)
+![](https://raw.githubusercontent.com/natibek/licensepy/main/imgs/licensepy_output.png)
 
 Command line arguments can be used to recusively check all the dependencies of the project (-r, --recursive), group output by pacakges in alphabetical order (--by-package), silence all outputs (-s, --silent), or only print fails (-f, --print-fails).
 
@@ -20,11 +20,11 @@ pip3 install licensepy
 ## Command Line Arguments
 
 1. -r, --recursive: Recursively find all the dependencies of the project and their licences.
-   ![Recursive output](./imgs/licensepy_recusive.png)
+   ![](https://raw.githubusercontent.com/natibek/licensepy/main/imgs/licesepy_recursive.png)
    - Recusive dependencies will have the color red if they have licenses that have been flagged to avoid and green otherwise.
-     ![Recursive output avoiding MIT licenses](./imgs/licensepy_recusive_avoid_mit.png)
+     ![](https://raw.githubusercontent.com/natibek/licensepy/main/imgs/licesepy_recursive_avoid_mit.png)
 1. -by-package: Groupt output by packages in alphabetial order.
-   ![Img](./imgs/licensepy_output_by_package.png)
+   ![](https://raw.githubusercontent.com/natibek/licensepy/main/imgs/licesepy_output_by_package.png)
 1. -s, silent: Silence all outputs.
 1. -f, print-fails: Only print the packages whose licenses are flagged to be avoided.
 
@@ -45,10 +45,10 @@ This is the output when the above configuration is used for:
     licensepy
     ```
 
-    ![by-package](./imgs/licensepy_avoid_mit.png)
+    ![](https://raw.githubusercontent.com/natibek/licensepy/main/imgs/licensepy_avoid_mit.png)
 
 1.  ```bash
     licensepy --by-package
     ```
 
-    ![by-package](./imgs/licensepy_by_package_avoid_MIT.png)
+    ![](https://raw.githubusercontent.com/natibek/licensepy/main/imgs/licensepy_by_package_avoid_MIT.png)
