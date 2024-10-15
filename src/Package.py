@@ -1,9 +1,12 @@
+from dataclasses import dataclass
+
+
+@dataclass
 class Package:
     """Used to store a package's information including name, license, and packages it requires."""
 
-    def __init__(self, name: str, license: str) -> None:
-        self.name = name  # name of the package
-        self.license = license  # license of the package
+    name: str  # name of the package
+    license: str  # license of the package
 
     def __str__(self) -> str:
         return f"{self.name} ({self.license})"

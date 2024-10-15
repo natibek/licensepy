@@ -64,7 +64,11 @@ class ProjectLicenses:
         for char in ["'", '"', " "]:
             expression = expression.replace(char, "")
 
-        version = re.split(r"==|<=|>=|!=|<|>", expression)[1].strip().split(".")
+        version = re.search(r"python_version(==|<=|>=|!=|<|>)\d\.\d(\.\d)?", expression)
+        assert version
+        version = version.group(0)
+        version = re.split(r"(==|<=|>=|!=|<|>)", version)[2].strip().split(".")
+
         if len(version) == 2:
             version.append(self._python_version[2])
 
@@ -72,7 +76,6 @@ class ProjectLicenses:
             int(ver) - int(p_ver) for ver, p_ver in zip(version, self._python_version)
         ]
 
-        # print(req_info, expression, version, self._python_version, diff, end=" -> ")
         if "<=" in expression:
             return diff[0] > 0 or (diff[0] == 0 and diff[1] >= 0)
         elif "<" in expression:
