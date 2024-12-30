@@ -39,7 +39,7 @@ class ProjectLicenses:
         """
 
         dependencies = subprocess.check_output(
-            ["python", "-m" "pip", "freeze"], text=True
+            ["python", "-m" "pip", "freeze", "--exclude-editable"], text=True
         )
         dependencies = [
             re.split(r"==|@", dep)[0].strip() for dep in dependencies.split("\n") if dep
