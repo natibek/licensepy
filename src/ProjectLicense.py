@@ -2,7 +2,7 @@ import platform
 import re
 import subprocess
 from collections import Counter
-from importlib.metadata import distribution
+from importlib.metadata import PackageNotFoundError, distribution, metadata, PackageMetadata
 
 from .Package import Package
 from .pretty_string import *
@@ -93,7 +93,7 @@ class ProjectLicenses:
             return diff[0] != 0 or diff[1] != 0 or diff[2] != 0
         return True
 
-    def get_package_requirements(self, package_name: str) -> list[str]:
+    def get_package_requirements(self, package_name: str, metaData: PackageMetadata) -> list[str]:
         """Get the packages that a package requires.
 
         Args:
@@ -102,25 +102,40 @@ class ProjectLicenses:
         Returns a list of the packages requirements.
         """
 
-        package_requirements = []
-        try:
-            req_info = distribution(package_name).metadata.get_all("Requires-Dist")
-        except Exception:
-            req_info = None
+        if package_name in self._packages:
+            return self._packages[package_name].requirements
 
-        if req_info:
-            for req in req_info:
-                if (
-                    ";" not in req
-                    or ("; python_version" in req)
-                    and self._matches_python_version(req)
-                ):
-                    package_req = re.split(r"[<>=~\(;!]", req)[0].strip()
-                    package_requirements.append(package_req)
+        req_info = metaData.get_all("Requires-Dist")
+        if not req_info:
+            return []
+
+        package_requirements = []
+        for req in req_info:
+            if (
+                ";" not in req
+                or ("; python_version" in req)
+                and self._matches_python_version(req)
+            ):
+                package_req = re.split(r"[<>=~\(;!]", req)[0].strip()
+                package_requirements.append(package_req)
 
         return package_requirements
+    
+    def get_metadata(self, package_name: str) -> PackageMetadata | None:
+        """Get the package's metadata.
 
-    def get_license(self, package_name: str) -> str:
+        Args:
+            package_name: The package's name.
+
+        Returns the packages license else None.
+        """
+        try:
+            return metadata(package_name)
+        except PackageNotFoundError:
+            return None
+
+
+    def get_license(self, package_name: str, metaData: PackageMetadata) -> str:
         """Get the license of the package from the cache, License metadata, or Classifier metadata.
 
         Args:
@@ -131,21 +146,13 @@ class ProjectLicenses:
 
         if package_name in self._packages:
             return self._packages[package_name].license
-
-        try:
-            license = distribution(package_name).metadata.get("License")
-        except Exception:
-            license = None
-            
-        if (not license or len(license) > 10):
+ 
+        license = metaData.get("License")
+        if (license is None or len(license) > 10):
             # really long license strings are likely to be the entire licensing doc
+            classifier = metaData.get_all("Classifier")
 
-            try:
-                classifier = distribution(package_name).metadata.get_all("Classifier")
-            except Exception:
-                classifier = None
-
-            if not classifier:
+            if classifier is None:
                 # edge case when package_name does not have classifier information
                 return "?"
 
@@ -160,25 +167,39 @@ class ProjectLicenses:
         """Get the direct dependencies of the project and their licenses."""
 
         dependencies = self.find_project_dependencies()
-        for package in dependencies:
-            cur_package = Package(package, self.get_license(package))
-            self._packages[package] = cur_package
-            cur_package.requirements = self.get_package_requirements(package)
-            self._project_dependencies.append(package)
+        for package_name in dependencies:
+            metaData = self.get_metadata(package_name)
+            if metaData is None:
+                cur_package = Package(package_name, "?", [])
+            else:
+                license = self.get_license(package_name, metaData)
+                requirements = self.get_package_requirements(package_name, metaData)
+                cur_package = Package(package_name, license, requirements)
 
-    def fetch_recursive_dependencies(self):
+            self._packages[package_name] = cur_package
+            self._project_dependencies.append(package_name)
+
+    def fetch_recursive_dependencies(self) -> None:
         """Recursively find all the packages each of the direct dependencies of the project require."""
 
         queue = self._project_dependencies[:]
         while queue:
-            package = queue.pop()
+            package_name = queue.pop()
 
-            if package not in self._packages:
-                cur_package = Package(package, self.get_license(package))
-                cur_package.requirements = self.get_package_requirements(package)
-                self._packages[package] = cur_package
+            if package_name not in self._packages:
+                metaData = self.get_metadata(package_name)
+                if metaData is None:
+                    cur_package = Package(package_name, "?", [])
+                    requirements = []
+                else:
+                    license = self.get_license(package_name, metaData)
+                    requirements = self.get_package_requirements(package_name, metaData)
+                    cur_package = Package(package_name, license, requirements)
+                self._packages[package_name] = cur_package
+            else:
+                requirements = self._packages[package_name].requirements
 
-            for req in self._packages[package].requirements:
+            for req in requirements:
                 if req not in self._packages:
                     queue.append(req)
 
@@ -267,8 +288,7 @@ class ProjectLicenses:
 
         unique_licenses = set(package.license for package in self._packages.values())
 
-        for license in self.to_avoid:
-            if license in unique_licenses:
-                return 1
+        if any(license in self.to_avoid for license in unique_licenses):
+            return 1
 
         return 0
