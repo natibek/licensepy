@@ -1,7 +1,1 @@
-.venv
-.testvenv
-dep.txt
-pyproject.toml
-__pycache__
-dist/
-licensepy.egg-info
+target/
