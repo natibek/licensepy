@@ -37,13 +37,16 @@ class ProjectLicenses:
 
         Returns a list of the names of the packages the project depends on.
         """
+        try:
+            dependencies = subprocess.check_output(
+                ["python3", "-m", "pip", "freeze", "--exclude-editable"], text=True
+            )
+            dependencies = [
+                re.split(r"==|@", dep)[0].strip() for dep in dependencies.split("\n") if dep
+            ]
+        except Exception:
+            raise Exception("python3 not found in the environment or globally.")
 
-        dependencies = subprocess.check_output(
-            ["python", "-m" "pip", "freeze", "--exclude-editable"], text=True
-        )
-        dependencies = [
-            re.split(r"==|@", dep)[0].strip() for dep in dependencies.split("\n") if dep
-        ]
         return dependencies
 
     def _matches_python_version(self, req_info: str) -> bool:
@@ -100,7 +103,12 @@ class ProjectLicenses:
         """
 
         package_requirements = []
-        if req_info := distribution(package_name).metadata.get_all("Requires-Dist"):
+        try:
+            req_info = distribution(package_name).metadata.get_all("Requires-Dist")
+        except Exception:
+            req_info = None
+
+        if req_info:
             for req in req_info:
                 if (
                     ";" not in req
@@ -124,13 +132,19 @@ class ProjectLicenses:
         if package_name in self._packages:
             return self._packages[package_name].license
 
-        if (
-            not (license := distribution(package_name).metadata.get("License"))
-            or len(license) > 10
-        ):
+        try:
+            license = distribution(package_name).metadata.get("License")
+        except Exception:
+            license = None
+            
+        if (not license or len(license) > 10):
             # really long license strings are likely to be the entire licensing doc
 
-            classifier = distribution(package_name).metadata.get_all("Classifier")
+            try:
+                classifier = distribution(package_name).metadata.get_all("Classifier")
+            except Exception:
+                classifier = None
+
             if not classifier:
                 # edge case when package_name does not have classifier information
                 return "?"
