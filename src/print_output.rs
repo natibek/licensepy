@@ -1,0 +1,85 @@
+use std::collections::{HashMap, HashSet};
+use colored::Colorize;
+use crate::metadata::Metadata;
+
+pub fn print_by_package(dependencies: Vec<Metadata>, recursive: bool) {
+    let mut dep_map: HashMap<String, bool> = HashMap::new();
+
+    for dep in &dependencies {
+        dep_map.insert(dep.name.clone(), dep.bad_license);
+    }
+    let mut sorted_dep = dependencies.clone();
+    sorted_dep.sort();
+
+    for dep in &sorted_dep{
+        let license = dep.license.join(" & ");
+
+        if dep.bad_license {
+            print!("{}  {} ({}) ", "✗".red().bold(), dep.name, license);
+        } else {
+            print!("{}  {} ({}) ", "✔".cyan().bold(), dep.name, license);
+        }
+
+        if recursive && dep.requirements.len() > 0 {
+            print!(" [ ");
+            for req in &dep.requirements {
+                let bad_req_license = dep_map.get(req).is_some();
+                if bad_req_license {
+                    print!("{}, ", req.red().bold());
+                } else {
+                    print!("{}, ", req.bold())
+                }
+            }
+            print!("]");
+        } 
+        println!();
+    }
+}
+
+pub fn print_by_license(dependencies: Vec<Metadata>, recursive: bool, license_to_avoid: &Vec<String>) {
+    let mut license_map: HashMap<&str, Vec<Metadata>> = HashMap::new();
+    let mut dep_map: HashMap<String, bool> = HashMap::new();
+    let mut licenses: HashSet<&str> = HashSet::new();
+
+    for dep in &dependencies {
+        dep_map.insert(dep.name.clone(), dep.bad_license);
+        for license in &dep.license {
+            license_map
+                .entry(license)
+                .or_insert_with(Vec::new)
+                .push(dep.clone());
+            licenses.insert(license);
+        }
+    }
+
+    let mut sorted_licenses = licenses.into_iter().collect::<Vec<_>>();
+    sorted_licenses.sort();
+
+    for license in sorted_licenses {
+        if let Some(deps) = license_map.get(license) {
+            let num_deps = deps.len();
+            if license_to_avoid.contains(&license.to_string()) {
+                println!("---{} [{}]---  {}", license, num_deps, "✗".red().bold());
+            } else {
+                println!("---{} [{}]---  {}", license, num_deps, "✔".cyan().bold());
+            }
+            for d in deps {
+                print!("\t{}", d.name);
+                if recursive && d.requirements.len() > 0 {
+                    print!(" [ ");
+                    for req in &d.requirements {
+                        if let Some(&bad_req_license) = dep_map.get::<String>(req) {
+                            if bad_req_license {
+                                print!("{}, ", req.red().bold());
+                            } else {
+                                print!("{}, ", req.bold())
+                            }
+                        }
+                    }
+                    print!("]");
+                } 
+                println!();
+            }
+        }
+    }
+}
