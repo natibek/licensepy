@@ -1,3 +1,7 @@
+use clap::Parser;
+mod argparse;
+use argparse::Args;
+
 mod utils;
 use utils::{ read_toml, get_python_version };
 
@@ -12,9 +16,16 @@ use licensepy::{ get_package_dir, get_dist_directories, DistType };
 
 
 fn main() {
-    let recursive: bool = true;
-    let by_package: bool = false;
-    let license_to_avoid: Vec<String> = read_toml();
+    let args = Args::parse();
+    let recursive: bool = args.recursive;
+    let by_package: bool = args.by_package;
+
+    let license_to_avoid: Vec<String> = if args.ignore_toml {
+        Vec::new()
+    } else {
+        read_toml()
+    };
+
     println!("Avoid {:?}", license_to_avoid);
 
     let python_version: [i32; 3] = get_python_version();
