@@ -20,7 +20,7 @@ impl Metadata {
         if bad_license {
             print!("x {} ({}) ", self.name, license);
         } else {
-            print!("  {} ({})", self.name, license);
+            print!("  {} ({}) ", self.name, license);
         }
 
         if self.requirements.len() > 0 && recursive {
@@ -121,7 +121,7 @@ fn get_package_dir(dist_dir: String) -> Vec<DistType> {
 // directory needs to end with .egg-info with PKG-INFO or .dist-info with METADATA
 // or the info file
     match read_dir(dist_dir) {
-        Err(why) => panic!("Failed to read directory {}.", why),
+        Err(_) => Vec::new(),
         Ok(files) => files
                     .filter_map(|entry| entry.ok())
                     .filter_map(|entry: DirEntry| {
@@ -177,7 +177,7 @@ fn get_dist_directories() -> Vec<String> {
 
     let text_output = String::from_utf8(output.stdout).unwrap();
     let dist_dirs: Vec<String> = text_output.split(|c: char| c == '\n' || c == ',' || c == '\'')
-                                            .filter(|s| s.contains("dist-packages"))
+                                            .filter(|s| s.contains("dist-packages") || s.contains("site-packages"))
                                             .map(|s| s.trim().to_string())
                                             .collect();
     dist_dirs
