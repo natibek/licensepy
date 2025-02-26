@@ -1,8 +1,9 @@
-use std::fs::{File, read_dir, DirEntry};
+use std::fs::{File, read_dir, DirEntry, read_to_string};
 use std::io::{self, BufRead};
 use std::path::{Path, PathBuf};
 use std::process::Command;
 use regex::Regex;
+use toml::Table;
 
 #[derive(Default, Debug)]
 struct Metadata {
@@ -12,13 +13,21 @@ struct Metadata {
 }
 
 impl Metadata {
-    fn print(&self, recursive: bool) {
+    fn print(&self, recursive: bool, license_to_avoid: &Vec<String>) {
+        let bad_license = self.license.iter().any(|item| license_to_avoid.contains(item));
+
         let license = self.license.join(" & ");
+        if bad_license {
+            print!("x {} ({}) ", self.name, license);
+        } else {
+            print!("  {} ({})", self.name, license);
+        }
+
         if self.requirements.len() > 0 && recursive {
             let requirements = self.requirements.join(", ");
-            println!("{} ({}) [{:}]", self.name, license, requirements)
+            println!("[{:}]", requirements)
         } else {
-            println!("{} ({})", self.name, license)
+            println!();
         }
     } 
 }
@@ -45,7 +54,10 @@ impl DistType {
         }
     }
 }
+
 fn main() {
+    let license_to_avoid: Vec<String> = read_toml();
+    println!("Avoid {:?}", license_to_avoid);
 
     let python_version: [i32; 3] = get_python_version();
     let str_version = python_version
@@ -73,17 +85,43 @@ fn main() {
     let num_dep = dependencies.len();
     // println!("{:?}", dependencies);
     for dep in dependencies {
-        dep.print(recursive);
+        dep.print(recursive, &license_to_avoid);
     }
     println!();
     println!("Found {} dependencies.", num_dep);
+}
+
+fn read_toml() -> Vec<String> {
+    const TOML_FILE: &str = "pyproject.toml";
+
+    if !Path::new(TOML_FILE).exists() { 
+        return Vec::new();
+    }
+
+    let toml_str = read_to_string(TOML_FILE)
+                            .expect(&format!("Failed to read {} file.", TOML_FILE));
+    let main_table = toml_str.parse::<Table>().unwrap();
+
+    if let Some(licensepy_config) = main_table.get("licensepy") {
+        if let Some(table) = licensepy_config.as_table() {
+            if let Some(to_avoid) = table.get("avoid").and_then(|v| v.as_array()) {
+                let vec_of_strings: Vec<String> =to_avoid.iter()
+                    .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                    .collect();
+        
+                return vec_of_strings;
+            }
+        }
+    }
+    Vec::new()
+
 }
 
 fn get_package_dir(dist_dir: String) -> Vec<DistType> {
 // directory needs to end with .egg-info with PKG-INFO or .dist-info with METADATA
 // or the info file
     match read_dir(dist_dir) {
-        Err(why) => panic!("Failed to read directory {}", why),
+        Err(why) => panic!("Failed to read directory {}.", why),
         Ok(files) => files
                     .filter_map(|entry| entry.ok())
                     .filter_map(|entry: DirEntry| {
