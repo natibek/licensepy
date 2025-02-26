@@ -2,34 +2,24 @@ use std::fs::{File, read_dir, DirEntry, read_to_string};
 use std::io::{self, BufRead};
 use std::path::{Path, PathBuf};
 use std::process::Command;
+use std::collections::{HashMap, HashSet};
 use regex::Regex;
 use toml::Table;
+use colored::Colorize;
 
-#[derive(Default, Debug)]
+
+#[derive(Default, Debug, Clone, Eq, PartialEq, PartialOrd)]
 struct Metadata {
     name: String,
     license: Vec<String>,
     requirements: Vec<String>,
+    bad_license: bool,
 }
 
-impl Metadata {
-    fn print(&self, recursive: bool, license_to_avoid: &Vec<String>) {
-        let bad_license = self.license.iter().any(|item| license_to_avoid.contains(item));
-
-        let license = self.license.join(" & ");
-        if bad_license {
-            print!("x {} ({}) ", self.name, license);
-        } else {
-            print!("  {} ({}) ", self.name, license);
-        }
-
-        if self.requirements.len() > 0 && recursive {
-            let requirements = self.requirements.join(", ");
-            println!("[{:}]", requirements)
-        } else {
-            println!();
-        }
-    } 
+impl Ord for Metadata {
+    fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+        self.name.cmp(&other.name)
+    }
 }
 
 #[derive(Debug)]
@@ -40,22 +30,24 @@ enum DistType {
 }
 
 impl DistType {
-    fn get_metadata(self, python_version: &[i32; 3], recursive: bool) -> Metadata {
+    fn get_metadata(self, python_version: &[i32; 3], recursive: bool, license_to_avoid: &Vec<String>) -> Metadata {
         match self {
             DistType::EggDir(path) => {
                 let metadata_path = path.join("PKG-INFO");
-                parse_metadata(metadata_path, python_version, recursive)
+                parse_metadata(metadata_path, python_version, recursive, license_to_avoid)
             },
             DistType::DistDir(path) => {
                 let metadata_path = path.join("METADATA");               
-                parse_metadata(metadata_path, python_version, recursive)
+                parse_metadata(metadata_path, python_version, recursive, license_to_avoid)
             },
-            DistType::Info(path) => parse_metadata(path, python_version, recursive)
+            DistType::Info(path) => parse_metadata(path, python_version, recursive, license_to_avoid)
         }
     }
 }
 
 fn main() {
+    let recursive: bool = true;
+    let by_package: bool = false;
     let license_to_avoid: Vec<String> = read_toml();
     println!("Avoid {:?}", license_to_avoid);
 
@@ -75,20 +67,103 @@ fn main() {
                     .collect();
     // println!("{:?}", package_dist);
     println!();
-    let recursive = true;
 
     let dependencies: Vec<Metadata> = package_dist
                     .into_iter()
-                    .map(|dist| dist.get_metadata(&python_version, recursive))
+                    .map(|dist| dist.get_metadata(&python_version, recursive, &license_to_avoid))
                     .collect();
 
     let num_dep = dependencies.len();
     // println!("{:?}", dependencies);
-    for dep in dependencies {
-        dep.print(recursive, &license_to_avoid);
+    if by_package {
+        print_by_package(dependencies, recursive);
+    } else {
+        print_by_license(dependencies, recursive, &license_to_avoid);
     }
     println!();
     println!("Found {} dependencies.", num_dep);
+}
+
+fn print_by_package(dependencies: Vec<Metadata>, recursive: bool) {
+    let mut dep_map: HashMap<String, bool> = HashMap::new();
+
+    for dep in &dependencies {
+        dep_map.insert(dep.name.clone(), dep.bad_license);
+    }
+    let mut sorted_dep = dependencies.clone();
+    sorted_dep.sort();
+
+    for dep in &sorted_dep{
+        let license = dep.license.join(" & ");
+
+        if dep.bad_license {
+            print!("{}  {} ({}) ", "✗".red().bold(), dep.name, license);
+        } else {
+            print!("{}  {} ({}) ", "✔".cyan().bold(), dep.name, license);
+        }
+
+        if recursive && dep.requirements.len() > 0 {
+            print!(" [ ");
+            for req in &dep.requirements {
+                let bad_req_license = dep_map.get(req).is_some();
+                if bad_req_license {
+                    print!("{}, ", req.red().bold());
+                } else {
+                    print!("{}, ", req.bold())
+                }
+            }
+            print!("]");
+        } 
+        println!();
+    }
+}
+
+fn print_by_license(dependencies: Vec<Metadata>, recursive: bool, license_to_avoid: &Vec<String>) {
+    let mut license_map: HashMap<&str, Vec<Metadata>> = HashMap::new();
+    let mut dep_map: HashMap<String, bool> = HashMap::new();
+    let mut licenses: HashSet<&str> = HashSet::new();
+
+    for dep in &dependencies {
+        dep_map.insert(dep.name.clone(), dep.bad_license);
+        for license in &dep.license {
+            license_map
+                .entry(license)
+                .or_insert_with(Vec::new)
+                .push(dep.clone());
+            licenses.insert(license);
+        }
+    }
+
+    let mut sorted_licenses = licenses.into_iter().collect::<Vec<_>>();
+    sorted_licenses.sort();
+
+    for license in sorted_licenses {
+        if let Some(deps) = license_map.get(license) {
+            let num_deps = deps.len();
+            if license_to_avoid.contains(&license.to_string()) {
+                println!("---{} [{}]---  {}", license, num_deps, "✗".red().bold());
+            } else {
+                println!("---{} [{}]---  {}", license, num_deps, "✔".cyan().bold());
+            }
+            for d in deps {
+                print!("\t{}", d.name);
+                if recursive && d.requirements.len() > 0 {
+                    print!(" [ ");
+                    for req in &d.requirements {
+                        if let Some(&bad_req_license) = dep_map.get::<String>(req) {
+                            if bad_req_license {
+                                print!("{}, ", req.red().bold());
+                            } else {
+                                print!("{}, ", req.bold())
+                            }
+                        }
+                    }
+                    print!("]");
+                } 
+                println!();
+            }
+        }
+    }
 }
 
 fn read_toml() -> Vec<String> {
@@ -190,7 +265,7 @@ fn get_dist_directories() -> Vec<String> {
 // Requires-Python: >=3.6
 // Requires-Dist: coverage ; extra == 'test'
 // Requires-Dist: mypy ; extra == 'test'
-fn parse_metadata(path: PathBuf, python_version: &[i32; 3], recursive: bool) -> Metadata {
+fn parse_metadata(path: PathBuf, python_version: &[i32; 3], recursive: bool, license_to_avoid: &Vec<String>) -> Metadata {
     let mut requirements: Vec<String> = Vec::new();
     let mut name: String = String::new();
 
@@ -243,11 +318,13 @@ fn parse_metadata(path: PathBuf, python_version: &[i32; 3], recursive: bool) -> 
     }
 
     if license.len() > license_classifier.len() {
-        Metadata {name, license, requirements}
+        let bad_license = license.iter().any(|item| license_to_avoid.contains(item));
+        Metadata {name, license, requirements, bad_license}
     } else if license.len() == 0 && license_classifier.len() == 0 {
-        Metadata {name, license: vec!["?".to_string()], requirements}
+        Metadata {name, license: vec!["?".to_string()], requirements, bad_license: false}
     } else {
-        Metadata {name, license: license_classifier, requirements}
+        let bad_license = license_classifier.iter().any(|item| license_to_avoid.contains(item));
+        Metadata {name, license: license_classifier, requirements, bad_license}
     }
 }
 
