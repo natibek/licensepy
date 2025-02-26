@@ -1,5 +1,4 @@
 from dataclasses import dataclass
-from importlib.metadata import PackageMetadata
 
 
 @dataclass
