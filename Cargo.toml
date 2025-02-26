@@ -12,3 +12,4 @@ license = "Apache 2.0"
 
 [dependencies]
 regex = "1.11.1"
+toml = "0.8.20"
