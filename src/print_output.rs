@@ -2,7 +2,7 @@ use std::collections::{HashMap, HashSet};
 use colored::Colorize;
 use crate::metadata::Metadata;
 
-pub fn print_by_package(dependencies: Vec<Metadata>, recursive: bool) {
+pub fn print_by_package(dependencies: Vec<Metadata>, recursive: bool, fail_print: bool) {
     let mut dep_map: HashMap<String, bool> = HashMap::new();
 
     for dep in &dependencies {
@@ -16,6 +16,8 @@ pub fn print_by_package(dependencies: Vec<Metadata>, recursive: bool) {
 
         if dep.bad_license {
             print!("{}  {} ({}) ", "✗".red().bold(), dep.name, license);
+        } else if fail_print {
+            continue;
         } else {
             print!("{}  {} ({}) ", "✔".cyan().bold(), dep.name, license);
         }
@@ -23,11 +25,12 @@ pub fn print_by_package(dependencies: Vec<Metadata>, recursive: bool) {
         if recursive && dep.requirements.len() > 0 {
             print!(" [ ");
             for req in &dep.requirements {
-                let bad_req_license = dep_map.get(req).is_some();
-                if bad_req_license {
-                    print!("{}, ", req.red().bold());
-                } else {
-                    print!("{}, ", req.bold())
+                if let Some(bad_req_license) = dep_map.get(req) {
+                    if *bad_req_license {
+                        print!("{}, ", req.red().bold());
+                    } else if !fail_print {
+                        print!("{}, ", req.bold())
+                    }
                 }
             }
             print!("]");
@@ -36,7 +39,12 @@ pub fn print_by_package(dependencies: Vec<Metadata>, recursive: bool) {
     }
 }
 
-pub fn print_by_license(dependencies: Vec<Metadata>, recursive: bool, license_to_avoid: &Vec<String>) {
+pub fn print_by_license(
+    dependencies: Vec<Metadata>, 
+    license_to_avoid: &Vec<String>, 
+    recursive: bool,
+    fail_print: bool) 
+{
     let mut license_map: HashMap<&str, Vec<Metadata>> = HashMap::new();
     let mut dep_map: HashMap<String, bool> = HashMap::new();
     let mut licenses: HashSet<&str> = HashSet::new();
@@ -60,6 +68,8 @@ pub fn print_by_license(dependencies: Vec<Metadata>, recursive: bool, license_to
             let num_deps = deps.len();
             if license_to_avoid.contains(&license.to_string()) {
                 println!("---{} [{}]---  {}", license, num_deps, "✗".red().bold());
+            } else if fail_print {
+                continue;
             } else {
                 println!("---{} [{}]---  {}", license, num_deps, "✔".cyan().bold());
             }

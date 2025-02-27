@@ -14,4 +14,12 @@ pub struct Args {
     /// Ignore pyproject.toml file. Default if false.
     #[arg(short, long, default_value_t = false)]
     pub ignore_toml: bool,
+
+    /// Don't print any outputs. Default if false.
+    #[arg(short, long, default_value_t = false)]
+    pub silent: bool,
+
+    /// Print only fail. Default if false.
+    #[arg(short, long, default_value_t = false)]
+    pub fail_print: bool,
 }

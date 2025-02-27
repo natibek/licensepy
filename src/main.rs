@@ -1,3 +1,6 @@
+use::colored::Colorize;
+use std::process::exit;
+
 use clap::Parser;
 mod argparse;
 use argparse::Args;
@@ -26,8 +29,6 @@ fn main() {
         read_toml()
     };
 
-    println!("Avoid {:?}", license_to_avoid);
-
     let python_version: [i32; 3] = get_python_version();
     let str_version = python_version
         .iter()
@@ -35,15 +36,20 @@ fn main() {
         .collect::<Vec<_>>()
         .join(".");
 
-    println!("PYTHON VERSION {:}", str_version);
     let dist_dirs = get_dist_directories();
-    println!("Dependencies stored at {:#?}.", dist_dirs);
+
+    if !args.silent {
+        println!("Avoid {:?}", license_to_avoid);
+        println!("PYTHON VERSION {:}", str_version);
+        println!("Dependencies stored at {:#?}.", dist_dirs);
+        println!();
+    }
+
     let package_dist: Vec<DistType> = dist_dirs
                     .into_iter()
                     .flat_map(get_package_dir)
                     .collect();
     // println!("{:?}", package_dist);
-    println!();
 
     let dependencies: Vec<Metadata> = package_dist
                     .into_iter()
@@ -52,13 +58,25 @@ fn main() {
 
     let num_dep = dependencies.len();
     // println!("{:?}", dependencies);
-    if by_package {
-        print_by_package(dependencies, recursive);
-    } else {
-        print_by_license(dependencies, recursive, &license_to_avoid);
+    let num_bad_license: i32 = dependencies
+                                .iter()
+                                .filter(|dep| dep.bad_license)
+                                .count()
+                                .try_into()
+                                .unwrap();
+
+    if !args.silent {
+        if by_package {
+            print_by_package(dependencies, recursive, args.fail_print);
+        } else {
+            print_by_license(dependencies, &license_to_avoid, recursive, args.fail_print);
+        }
+        println!();
+        println!("Found {} total dependencies.", num_dep.to_string().cyan());
+        println!("Found {} dependencies with licenses to avoid.", num_bad_license.to_string().cyan());
     }
-    println!();
-    println!("Found {} dependencies.", num_dep);
+
+    exit(num_bad_license);
 }
 
 
