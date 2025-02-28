@@ -1,10 +1,10 @@
 # licensepy: Python License Check Module.
 
-**_licensepy_** is a Python dependency license check library with recursive dependency handling for pip (and conda in the future). This package has recursive dependency checks that are not offered by many existing license check libraries. By default, the output will group packages by their licenses.
+**_licensepy_** is a Python dependency license check library written in Rust. This package has recursive dependency checks that are not offered by many existing license check libraries. By default, the output will group packages by their licenses.
 
 ![](https://raw.githubusercontent.com/natibek/licensepy/main/imgs/licensepy_output.png)
 
-Command line arguments can be used to recursively check all the dependencies of the project (-r, --recursive), group output by packages in alphabetical order (--by-package), silence all outputs (-s, --silent), or only print fails (-f, --print-fails).
+Command line arguments can be used to recursively find all the dependencies of the project (-r, --recursive), group output by packages in alphabetical order (--by-package), silence all outputs (-s, --silent), or only print fails (-f, --print-fails).
 
 Configure the tool with a _pyproject.toml_ file at the root directory of the project with a list of licenses to avoid. If any one the dependencies of the project use these flagged licenses, **licensepy** will exit with code 1. Otherwise, it will exit with code 0.
 

@@ -1,4 +1,4 @@
-use::colored::Colorize;
+use ::colored::Colorize;
 use std::process::exit;
 
 use clap::Parser;
@@ -6,17 +6,16 @@ mod argparse;
 use argparse::Args;
 
 mod utils;
-use utils::{ read_toml, get_python_version };
+use utils::{get_python_version, read_toml};
 
 mod print_output;
-use print_output::{ print_by_package, print_by_license };
+use print_output::{print_by_license, print_by_package};
 
 mod metadata;
 use metadata::Metadata;
 
 mod licensepy;
-use licensepy::{ get_package_dir, get_dist_directories, DistType };
-
+use licensepy::{get_dist_directories, get_package_dir, DistType};
 
 fn main() {
     let args = Args::parse();
@@ -45,25 +44,22 @@ fn main() {
         println!();
     }
 
-    let package_dist: Vec<DistType> = dist_dirs
-                    .into_iter()
-                    .flat_map(get_package_dir)
-                    .collect();
+    let package_dist: Vec<DistType> = dist_dirs.into_iter().flat_map(get_package_dir).collect();
     // println!("{:?}", package_dist);
 
     let dependencies: Vec<Metadata> = package_dist
-                    .into_iter()
-                    .map(|dist| dist.get_metadata(&python_version, recursive, &license_to_avoid))
-                    .collect();
+        .into_iter()
+        .map(|dist| dist.get_metadata(&python_version, recursive, &license_to_avoid))
+        .collect();
 
     let num_dep = dependencies.len();
     // println!("{:?}", dependencies);
     let num_bad_license: i32 = dependencies
-                                .iter()
-                                .filter(|dep| dep.bad_license)
-                                .count()
-                                .try_into()
-                                .unwrap();
+        .iter()
+        .filter(|dep| dep.bad_license)
+        .count()
+        .try_into()
+        .unwrap();
 
     if !args.silent {
         if by_package {
@@ -73,11 +69,11 @@ fn main() {
         }
         println!();
         println!("Found {} total dependencies.", num_dep.to_string().cyan());
-        println!("Found {} dependencies with licenses to avoid.", num_bad_license.to_string().cyan());
+        println!(
+            "Found {} dependencies with licenses to avoid.",
+            num_bad_license.to_string().cyan()
+        );
     }
 
     exit(num_bad_license);
 }
-
-
-

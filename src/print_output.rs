@@ -1,6 +1,6 @@
-use std::collections::{HashMap, HashSet};
-use colored::Colorize;
 use crate::metadata::Metadata;
+use colored::Colorize;
+use std::collections::{HashMap, HashSet};
 
 pub fn print_by_package(dependencies: Vec<Metadata>, recursive: bool, fail_print: bool) {
     let mut dep_map: HashMap<String, bool> = HashMap::new();
@@ -11,7 +11,7 @@ pub fn print_by_package(dependencies: Vec<Metadata>, recursive: bool, fail_print
     let mut sorted_dep = dependencies.clone();
     sorted_dep.sort();
 
-    for dep in &sorted_dep{
+    for dep in &sorted_dep {
         let license = dep.license.join(" & ");
 
         if dep.bad_license {
@@ -34,17 +34,17 @@ pub fn print_by_package(dependencies: Vec<Metadata>, recursive: bool, fail_print
                 }
             }
             print!("]");
-        } 
+        }
         println!();
     }
 }
 
 pub fn print_by_license(
-    dependencies: Vec<Metadata>, 
-    license_to_avoid: &Vec<String>, 
+    dependencies: Vec<Metadata>,
+    license_to_avoid: &Vec<String>,
     recursive: bool,
-    fail_print: bool) 
-{
+    fail_print: bool,
+) {
     let mut license_map: HashMap<&str, Vec<Metadata>> = HashMap::new();
     let mut dep_map: HashMap<String, bool> = HashMap::new();
     let mut licenses: HashSet<&str> = HashSet::new();
@@ -87,7 +87,7 @@ pub fn print_by_license(
                         }
                     }
                     print!("]");
-                } 
+                }
                 println!();
             }
         }
