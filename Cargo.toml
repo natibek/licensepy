@@ -1,6 +1,6 @@
 [package]
 name = "licensepy"
-version = "1.0.0"
+version = "1.0.1"
 authors = ["Nathnael (Nati) Bekele nwtbekele@gmail.com"]
 edition = "2021"
 readme = "README.md"
