@@ -1,4 +1,4 @@
-use ::colored::Colorize;
+use colored::Colorize;
 use std::process::exit;
 
 use clap::Parser;
