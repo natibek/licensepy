@@ -1,6 +1,6 @@
 use crate::metadata::Metadata;
 use regex::Regex;
-use std::fs::{read_dir, DirEntry, File};
+use std::fs::{DirEntry, File, read_dir};
 use std::io::{self, BufRead};
 use std::path::{Path, PathBuf};
 use std::process::Command;
@@ -74,7 +74,7 @@ pub fn get_dist_directories() -> Vec<String> {
 
     let text_output = String::from_utf8(output.stdout).unwrap();
     let dist_dirs: Vec<String> = text_output
-        .split(|c: char| c == '\n' || c == ',' || c == '\'')
+        .split(['\n', ',', '\''])
         .filter(|s| s.contains("dist-packages") || s.contains("site-packages"))
         .map(|s| s.trim().to_string())
         .collect();
@@ -92,7 +92,7 @@ pub fn parse_metadata(
     path: PathBuf,
     python_version: &[i32; 3],
     recursive: bool,
-    license_to_avoid: &Vec<String>,
+    license_to_avoid: &[String],
 ) -> Metadata {
     let mut requirements: Vec<String> = Vec::new();
     let mut name: String = String::new();
@@ -119,15 +119,7 @@ pub fn parse_metadata(
                 if !req_info.contains(";") {
                     let req = req_info
                         .replace(" ", "")
-                        .split(|c: char| {
-                            c == '<'
-                                || c == '>'
-                                || c == '='
-                                || c == '~'
-                                || c == '('
-                                || c == ';'
-                                || c == '!'
-                        })
+                        .split(['<', '>', '=', '~', '(', ';', '!'])
                         .next()
                         .map(str::trim)
                         .unwrap()
@@ -170,7 +162,7 @@ pub fn parse_metadata(
             requirements,
             bad_license,
         }
-    } else if license.len() == 0 && license_classifier.len() == 0 {
+    } else if license.is_empty() && license_classifier.is_empty() {
         Metadata {
             name,
             license: vec!["?".to_string()],

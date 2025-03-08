@@ -10,7 +10,8 @@ pub fn read_toml() -> Vec<String> {
         return Vec::new();
     }
 
-    let toml_str = read_to_string(TOML_FILE).expect(&format!("Failed to read {} file.", TOML_FILE));
+    let toml_str =
+        read_to_string(TOML_FILE).unwrap_or_else(|_| panic!("Failed to read {} file.", TOML_FILE));
     let main_table = toml_str.parse::<Table>().unwrap();
 
     if let Some(licensepy_config) = main_table.get("licensepy") {

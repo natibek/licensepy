@@ -22,7 +22,7 @@ pub fn print_by_package(dependencies: Vec<Metadata>, recursive: bool, fail_print
             print!("{}  {} ({}) ", "✔".cyan().bold(), dep.name, license);
         }
 
-        if recursive && dep.requirements.len() > 0 {
+        if recursive && dep.requirements.is_empty() {
             print!(" [ ");
             for req in &dep.requirements {
                 if let Some(bad_req_license) = dep_map.get(req) {
@@ -41,7 +41,7 @@ pub fn print_by_package(dependencies: Vec<Metadata>, recursive: bool, fail_print
 
 pub fn print_by_license(
     dependencies: Vec<Metadata>,
-    license_to_avoid: &Vec<String>,
+    license_to_avoid: &[String],
     recursive: bool,
     fail_print: bool,
 ) {
@@ -52,10 +52,7 @@ pub fn print_by_license(
     for dep in &dependencies {
         dep_map.insert(dep.name.clone(), dep.bad_license);
         for license in &dep.license {
-            license_map
-                .entry(license)
-                .or_insert_with(Vec::new)
-                .push(dep.clone());
+            license_map.entry(license).or_default().push(dep.clone());
             licenses.insert(license);
         }
     }
@@ -75,7 +72,7 @@ pub fn print_by_license(
             }
             for d in deps {
                 print!("\t{}", d.name);
-                if recursive && d.requirements.len() > 0 {
+                if recursive && d.requirements.is_empty() {
                     print!(" [ ");
                     for req in &d.requirements {
                         if let Some(&bad_req_license) = dep_map.get::<String>(req) {
