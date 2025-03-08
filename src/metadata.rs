@@ -1,9 +1,15 @@
-#[derive(Default, Debug, Clone, Eq, PartialEq, PartialOrd)]
+#[derive(Default, Debug, Clone, Eq, PartialEq)]
 pub struct Metadata {
     pub name: String,
     pub license: Vec<String>,
     pub requirements: Vec<String>,
     pub bad_license: bool,
+}
+
+impl PartialOrd for Metadata {
+    fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+        Some(self.name.cmp(&other.name))
+    }
 }
 
 impl Ord for Metadata {

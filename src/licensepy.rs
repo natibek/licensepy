@@ -17,7 +17,7 @@ impl DistType {
         self,
         python_version: &[i32; 3],
         recursive: bool,
-        license_to_avoid: &Vec<String>,
+        license_to_avoid: &[String],
     ) -> Metadata {
         match self {
             DistType::EggDir(path) => {
