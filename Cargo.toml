@@ -2,7 +2,7 @@
 name = "licensepy"
 version = "1.0.1"
 authors = ["Nathnael (Nati) Bekele nwtbekele@gmail.com"]
-edition = "2021"
+edition = "2024"
 readme = "README.md"
 repository = "https://github.com/natibek/licensepy"
 license = "Apache 2.0"
@@ -16,6 +16,6 @@ path = "src/main.rs"
 [dependencies]
 regex = "1.11.1"
 toml = "0.8.20"
-colored = "2.2.0"
+colored = "3.0.0"
 clap = {version = "4.5.31", features = ["derive"]}
 pyo3 = { version = "0.20", features = ["extension-module"] }
