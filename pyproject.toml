@@ -14,7 +14,7 @@ maintainers = [
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 keywords = [
-    "jupyter notebook", "terminal", "textual", "notebook", "python", "tui"
+    "license", "license header", "license header formatter", "license check", "project dependency",
 ]
 classifiers = [
     "Programming Language :: Rust",
