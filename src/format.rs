@@ -2,6 +2,7 @@ use crate::utils::{Config, read_config};
 use chrono::{Datelike, Utc};
 use colored::Colorize;
 use rayon::prelude::*;
+use regex::Regex;
 use std::fs::{DirEntry, File, read_dir};
 use std::io::{self, BufRead, Read, Seek, SeekFrom, Write};
 use std::path::PathBuf;
@@ -21,14 +22,55 @@ fn match_license(comment_block: &str, config: &Config) -> LicenseMatchRes {
         lines
             .lines()
             .map(|line| line.trim_start_matches(COMMENT).trim().to_string())
+            .filter(|line| !line.is_empty())
             .collect::<Vec<String>>()
     };
 
+    // let clean_header = |lines: &str| {
+    //     lines
+    //         .lines()
+    //         .map(|line| line.trim_start_matches(COMMENT).trim().to_string())
+    //         .filter(|line| !line.is_empty())
+    //         .collect::<String>()
+    // };
+
+    let mut header_template = config.license_header.clone().unwrap();
+    // header_template = header_template.replace("{year}", r"(?<year>\d{4})");
+
+    if let Some(licensee) = config.licensee.as_ref() {
+        header_template = header_template.replace("{licensee}", licensee);
+    }
+
     let comments = clean_header(comment_block);
-    let templates = clean_header(config.license_header.as_ref().unwrap());
+    let templates = clean_header(&header_template);
     let mut years: Vec<i64> = vec![];
+    // let regex = Regex::new(&templates).unwrap();
+
+    // if regex.is_match(&comments) {
+    //     let cur_year = i64::from(Utc::now().year());
+    //     if regex
+    //         .captures_iter(&comments)
+    //         .any(|cap| cap["year"].parse::<i64>().unwrap() != cur_year)
+    //     {
+    //         return LicenseMatchRes::Update;
+    //     } else {
+    //         return LicenseMatchRes::Skip;
+    //     }
+    // } else {
+    //     return LicenseMatchRes::Insert;
+    // }
+
+    // println!(
+    //     "Found header {} expected {}",
+    //     comment_block, header_template
+    // );
 
     if comments.len() != templates.len() {
+        // println!(
+        //     "Different length for headers {} not equal to {}",
+        //     comments.len(),
+        //     templates.len()
+        // );
         return LicenseMatchRes::Insert;
     }
 
@@ -37,6 +79,10 @@ fn match_license(comment_block: &str, config: &Config) -> LicenseMatchRes {
         let template_words = template_line.split(" ").collect::<Vec<_>>();
 
         if comment_words.len() != template_words.len() {
+            // println!(
+            //     "Different length for line {:?} not equal to {:?}",
+            //     comment_words, template_words,
+            // );
             return LicenseMatchRes::Insert;
         }
 
@@ -44,18 +90,16 @@ fn match_license(comment_block: &str, config: &Config) -> LicenseMatchRes {
             match template_word {
                 "{year}" => {
                     if let Ok(year) = comment_word.parse::<i64>() {
+                        // println!("Parsed year {}", year);
                         years.push(year);
                     } else {
-                        return LicenseMatchRes::Insert;
-                    }
-                }
-                "{licensee}" => {
-                    if comment_word != config.licensee.as_ref().unwrap().as_str() {
+                        // println!("Failed to parse year");
                         return LicenseMatchRes::Insert;
                     }
                 }
                 word => {
                     if comment_word != word {
+                        // println!("Different words comment {} template {}", comment_word, word);
                         return LicenseMatchRes::Insert;
                     }
                 }
@@ -64,7 +108,7 @@ fn match_license(comment_block: &str, config: &Config) -> LicenseMatchRes {
     }
 
     let cur_year = i64::from(Utc::now().year());
-
+    // println!("Years found {:?}", years);
     if years.iter().any(|year| year != &cur_year) {
         LicenseMatchRes::Update
     } else {
@@ -235,24 +279,31 @@ fn format_header(config: &Config) -> String {
 
     header
         .lines()
-        .map(|line| COMMENT.to_string() + " " + line)
+        .map(|line| {
+            let line = line.trim();
+            if !line.starts_with(COMMENT) {
+                COMMENT.to_string() + " " + line + "\n"
+            } else {
+                line.to_string() + "\n"
+            }
+        })
         .collect::<String>()
         + "\n"
 }
 
 /// Recursively finds all the python files in a directory.
-fn find_python_files(cur_dir: PathBuf, python_files: &mut Vec<PathBuf>) {
+fn find_python_files(cur_dir: PathBuf, python_files: &mut Vec<PathBuf>, ingore_dirs: &[Regex; 4]) {
     match read_dir(cur_dir) {
         Err(_) => {}
         Ok(files) => files
             .filter_map(|entry| entry.ok())
             .for_each(|entry: DirEntry| {
                 let path = entry.path();
-                let filename = PathBuf::from(entry.file_name());
+                let name = entry.file_name().into_string().unwrap();
 
-                if path.is_dir() && !path.starts_with(".") {
-                    find_python_files(path, python_files);
-                } else if let Some(ext) = filename.extension()
+                if path.is_dir() && !ingore_dirs.iter().any(|re| re.is_match(&name)) {
+                    find_python_files(path, python_files, ingore_dirs);
+                } else if let Some(ext) = path.extension()
                     && ext == "py"
                 {
                     python_files.push(path);
@@ -271,7 +322,7 @@ pub fn run_format(
 ) {
     let mut config = read_config();
     if config.license_header == None {
-        println!("No license header found.");
+        println!("No license header found in config file.");
         exit(1);
     }
 
@@ -293,7 +344,13 @@ pub fn run_format(
             .collect()
     } else {
         let mut python_files: Vec<PathBuf> = vec![];
-        find_python_files(PathBuf::from("./"), &mut python_files);
+        let ingore_dirs: [Regex; 4] = [
+            Regex::new(r"^dist$").unwrap(),
+            Regex::new(r"^__pycache__$").unwrap(),
+            Regex::new(r"^.*\.egg-info$").unwrap(),
+            Regex::new(r"^\..*$").unwrap(),
+        ];
+        find_python_files(PathBuf::from("./"), &mut python_files, &ingore_dirs);
         python_files
     };
 
