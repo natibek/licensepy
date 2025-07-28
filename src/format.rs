@@ -1,4 +1,7 @@
 use crate::utils::{Config, read_config};
+use chrono::{Datelike, Utc};
+use colored::Colorize;
+use rayon::prelude::*;
 use std::fs::{DirEntry, File, read_dir};
 use std::io::{self, BufRead, Read, Seek, SeekFrom, Write};
 use std::path::PathBuf;
@@ -23,41 +26,50 @@ fn match_license(comment_block: &str, config: &Config) -> LicenseMatchRes {
 
     let comments = clean_header(comment_block);
     let templates = clean_header(config.license_header.as_ref().unwrap());
+    let mut years: Vec<i64> = vec![];
 
     if comments.len() != templates.len() {
         return LicenseMatchRes::Insert;
     }
 
     for (comment_line, template_line) in comments.iter().zip(templates) {
-        if !template_line.contains("{year}") && !template_line.contains("{licensee}") {
-            if comment_line != &template_line {
-                return LicenseMatchRes::Insert;
-            }
-        } else {
-            for (start, _) in template_line.match_indices("{year}") {
-                if let Some(found_year) = comment_line[start..].split_whitespace().next() {
-                    // check if it is a number
-                    if found_year.parse::<i64>().is_ok() {
-                        return LicenseMatchRes::Update;
+        let comment_words = comment_line.split(" ").collect::<Vec<_>>();
+        let template_words = template_line.split(" ").collect::<Vec<_>>();
+
+        if comment_words.len() != template_words.len() {
+            return LicenseMatchRes::Insert;
+        }
+
+        for (comment_word, template_word) in comment_words.into_iter().zip(template_words) {
+            match template_word {
+                "{year}" => {
+                    if let Ok(year) = comment_word.parse::<i64>() {
+                        years.push(year);
                     } else {
                         return LicenseMatchRes::Insert;
                     }
-                } else {
-                    return LicenseMatchRes::Insert;
                 }
-            }
-
-            for (start, _) in template_line.match_indices("{licensee}") {
-                if let Some(found_licensee) = comment_line[start..].split_whitespace().next() {
-                    // unwrap is safe since this is only called after config is verified
-                    if found_licensee != config.licensee.as_ref().unwrap().as_str() {
+                "{licensee}" => {
+                    if comment_word != config.licensee.as_ref().unwrap().as_str() {
+                        return LicenseMatchRes::Insert;
+                    }
+                }
+                word => {
+                    if comment_word != word {
                         return LicenseMatchRes::Insert;
                     }
                 }
             }
         }
     }
-    LicenseMatchRes::Skip
+
+    let cur_year = i64::from(Utc::now().year());
+
+    if years.iter().any(|year| year != &cur_year) {
+        LicenseMatchRes::Update
+    } else {
+        LicenseMatchRes::Skip
+    }
 }
 
 fn find_first_comment(file: &File) -> (String, usize) {
@@ -134,10 +146,7 @@ fn update_header(file: &mut File, exisiting_header: &str, license_header: &str) 
     let (before_header, after_header_inclusive) = &content.split_at_checked(header_start).unwrap();
     let after_header = &after_header_inclusive[exisiting_header.len()..];
 
-    if !before_header.is_empty() {
-        file.write_all(before_header.as_bytes()).unwrap();
-        file.write_all("\n".as_bytes()).unwrap();
-    }
+    file.write_all(before_header.as_bytes()).unwrap();
     file.write_all(license_header.as_bytes()).unwrap();
     if after_header.chars().next() == COMMENT.chars().next() {
         file.write_all("\n".as_bytes()).unwrap();
@@ -145,20 +154,66 @@ fn update_header(file: &mut File, exisiting_header: &str, license_header: &str) 
     file.write_all(after_header.as_bytes()).unwrap();
 }
 
-fn format_file(file: &PathBuf, license_header: &str, config: &Config) {
+fn format_file(
+    file: &PathBuf,
+    config: &Config,
+    license_header: &str,
+    silent: bool,
+    dry_run: bool,
+) -> bool {
     let mut f = File::options().read(true).write(true).open(file).unwrap();
+    let file_path = file.as_path().to_str().unwrap();
     let (found_header, insert_at) = find_first_comment(&f);
+    let mut needs_fix = false;
     match match_license(&found_header, &config) {
-        LicenseMatchRes::Insert => insert_header(&mut f, license_header, insert_at),
-        LicenseMatchRes::Skip => {}
-        LicenseMatchRes::Update => update_header(&mut f, &found_header, license_header),
+        LicenseMatchRes::Insert => {
+            needs_fix = true;
+            if !silent {
+                println!("{}: License header missing.", file_path.red().bold());
+            }
+            if !dry_run {
+                insert_header(&mut f, license_header, insert_at);
+            }
+        }
+        LicenseMatchRes::Skip => {
+            if !silent {
+                println!("{}: License header found.", file_path.cyan().bold());
+            }
+        }
+        LicenseMatchRes::Update => {
+            needs_fix = true;
+            if !silent {
+                println!(
+                    "{} License header outdated.",
+                    file_path.bright_yellow().bold()
+                );
+            }
+
+            if !dry_run {
+                update_header(&mut f, &found_header, license_header);
+            }
+        }
     }
+
+    needs_fix
 }
 
-fn format_files(files: &Vec<PathBuf>, num_threads: &u8, config: &Config, header: String) {
-    for file in files {
-        format_file(file, &header, &config)
+fn format_files(
+    files: &Vec<PathBuf>,
+    config: &Config,
+    header: String,
+    silent: bool,
+    dry_run: bool,
+) {
+    let num_to_fix: i32 = files
+        .par_iter()
+        .map(|file| format_file(file, &config, &header, silent, dry_run) as i32)
+        .sum();
+
+    if !silent {
+        println!("\n{} files to fix.", num_to_fix.to_string().red().bold());
     }
+    exit(num_to_fix);
 }
 
 /// Replace the place holders in the header with the values from the config
@@ -211,7 +266,8 @@ pub fn run_format(
     files: &Vec<String>,
     licensee: &Option<String>,
     license_year: &Option<u16>,
-    num_threads: &u8,
+    silent: bool,
+    dry_run: bool,
 ) {
     let mut config = read_config();
     if config.license_header == None {
@@ -241,6 +297,5 @@ pub fn run_format(
         python_files
     };
 
-    format_files(&files, num_threads, &config, header);
-    exit(1)
+    format_files(&files, &config, header, silent, dry_run);
 }
