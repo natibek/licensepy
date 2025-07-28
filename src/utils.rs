@@ -1,5 +1,4 @@
-use chrono::Datelike;
-use chrono::Utc;
+use chrono::{Datelike, Utc};
 use std::fs::read_to_string;
 use std::path::Path;
 use std::process::Command;
