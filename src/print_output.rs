@@ -22,7 +22,7 @@ pub fn print_by_package(dependencies: Vec<Metadata>, recursive: bool, fail_print
             print!("{}  {} ({}) ", "✔".cyan().bold(), dep.name, license);
         }
 
-        if recursive && dep.requirements.is_empty() {
+        if recursive && !dep.requirements.is_empty() {
             print!(" [ ");
             for req in &dep.requirements {
                 if let Some(bad_req_license) = dep_map.get(req) {
@@ -72,7 +72,7 @@ pub fn print_by_license(
             }
             for d in deps {
                 print!("\t{}", d.name);
-                if recursive && d.requirements.is_empty() {
+                if recursive && !d.requirements.is_empty() {
                     print!(" [ ");
                     for req in &d.requirements {
                         if let Some(&bad_req_license) = dep_map.get::<String>(req) {
