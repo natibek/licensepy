@@ -1,5 +1,6 @@
 use crate::metadata::Metadata;
 use colored::Colorize;
+use rayon::prelude::*;
 use regex::Regex;
 use std::fs::File;
 use std::fs::{DirEntry, read_dir};
@@ -11,7 +12,7 @@ use std::process::exit;
 use crate::print_output::{print_by_license, print_by_package};
 use crate::utils::{Config, get_python_version, read_config};
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 enum DistType {
     EggDir(PathBuf),
     DistDir(PathBuf),
@@ -256,11 +257,16 @@ pub fn run_check(
         println!();
     }
 
-    let package_dist: Vec<DistType> = dist_dirs.into_iter().flat_map(get_package_dir).collect();
+    let package_dist: Vec<DistType> = dist_dirs
+        .par_iter()
+        .cloned()
+        .flat_map(get_package_dir)
+        .collect();
     // println!("{:?}", package_dist);
 
     let dependencies: Vec<Metadata> = package_dist
-        .into_iter()
+        .par_iter()
+        .cloned()
         .map(|dist| dist.get_metadata(&python_version, recursive, &license_to_avoid))
         .collect();
 
