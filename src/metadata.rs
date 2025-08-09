@@ -8,7 +8,7 @@ pub struct Metadata {
 
 impl PartialOrd for Metadata {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
-        Some(self.name.cmp(&other.name))
+        Some(self.cmp(other))
     }
 }
 

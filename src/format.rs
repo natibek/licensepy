@@ -209,7 +209,7 @@ fn format_file(
     let file_path = file.as_path().to_str().unwrap();
     let (found_header, insert_at) = find_first_comment(&f);
     let mut needs_fix = false;
-    match match_license(&found_header, &config) {
+    match match_license(&found_header, config) {
         LicenseMatchRes::Insert => {
             needs_fix = true;
             if !silent {
@@ -251,7 +251,7 @@ fn format_files(
 ) {
     let num_to_fix: i32 = files
         .par_iter()
-        .map(|file| format_file(file, &config, &header, silent, dry_run) as i32)
+        .map(|file| format_file(file, config, &header, silent, dry_run) as i32)
         .sum();
 
     if !silent {
@@ -265,14 +265,14 @@ fn format_files(
 fn format_header(config: &Config) -> String {
     // replace the {year} and {licensee}
     let mut header = config.license_header.as_ref().unwrap().clone();
-    if header.find("{licensee}") != None {
-        if config.licensee == None {
+    if header.contains("{licensee}") {
+        if config.licensee.is_none() {
             println!(
                 "{{licensee}} template found in header but no value provided in config or command line."
             );
             exit(1);
         }
-        header = header.replace("{licensee}", &config.licensee.as_ref().unwrap());
+        header = header.replace("{licensee}", config.licensee.as_ref().unwrap());
     }
 
     header = header.replace("{year}", &config.license_year.to_string());
@@ -314,14 +314,14 @@ fn find_python_files(cur_dir: PathBuf, python_files: &mut Vec<PathBuf>, ingore_d
 
 /// Run the formatter on the given files
 pub fn run_format(
-    files: &Vec<String>,
+    files: &[String],
     licensee: &Option<String>,
     license_year: &Option<u16>,
     silent: bool,
     dry_run: bool,
 ) {
     let mut config = read_config();
-    if config.license_header == None {
+    if config.license_header.is_none() {
         println!("No license header found in config file.");
         exit(1);
     }
@@ -336,9 +336,9 @@ pub fn run_format(
 
     let header = format_header(&config);
 
-    let files: Vec<PathBuf> = if files.len() > 0 {
+    let files: Vec<PathBuf> = if !files.is_empty() {
         files
-            .into_iter()
+            .iter()
             .map(PathBuf::from)
             .filter(|path| path.exists() && path.extension().unwrap() == "py")
             .collect()
