@@ -16,7 +16,7 @@ const MAX_THREADS: u8 = 32u8;
 
 fn main() {
     let args = Args::parse();
-
+    env_logger::init();
     match &args.command {
         Commands::Check {
             recursive,
