@@ -10,7 +10,7 @@ mod print_output;
 mod utils;
 
 use check::run_check;
-use format::run_format;
+use format::Formatter;
 
 const MAX_THREADS: u8 = 32u8;
 
@@ -51,7 +51,8 @@ fn main() {
                 .build_global()
                 .unwrap();
 
-            run_format(files, licensee, license_year, *silent, *dry_run)
+            let formatter = Formatter::new(files, licensee, license_year, *silent, *dry_run);
+            formatter.format_files();
         }
     }
 }
