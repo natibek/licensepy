@@ -55,7 +55,7 @@ impl Formatter {
         dry_run: bool,
     ) -> Self {
         let mut config = read_config();
-        if config.license_header.is_none() {
+        if config.license_header_template.is_none() {
             println!("No license header found in config file.");
             exit(1);
         }
@@ -196,7 +196,7 @@ fn check_license(comment_block: &str, config: &Config) -> LicenseCheckRes {
     };
     // keep track if the year in the license header is outdated.
     let mut outdated = false;
-    let mut header_template = config.license_header.clone().unwrap();
+    let mut header_template = config.license_header_template.clone().unwrap();
 
     // By this point we have made sure that the licensee field of the config
     // is filled if the placeholder {licensee} is found in the template for the header
@@ -416,7 +416,7 @@ fn update_header(file: &mut File, exisiting_header: &str, license_header: &str) 
 /// Returns: The header with template placeholders filled out.
 fn format_header(config: &Config) -> String {
     // there has already been a check for a header so unwrap is safe.
-    let mut header = config.license_header.as_ref().unwrap().clone();
+    let mut header = config.license_header_template.as_ref().unwrap().clone();
 
     // replace the {year} and {licensee}
     if header.contains("{licensee}") {
@@ -479,7 +479,7 @@ fn find_python_files(cur_dir: PathBuf, python_files: &mut Vec<PathBuf>, ignore_d
 #[test]
 fn test_match_license() {
     let config = Config {
-        license_header: Some("# {year} {licensee}".to_string()),
+        license_header_template: Some("# {year} {licensee}".to_string()),
         licensee: Some("Acme Corp".to_string()),
         license_year: 2025,
         avoid: vec![],
