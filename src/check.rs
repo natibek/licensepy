@@ -107,8 +107,13 @@ fn parse_metadata(
     let mut license: Vec<String> = Vec::new();
     let mut license_classifier: Vec<String> = Vec::new();
 
-    let clean_line =
-        move |line: &str, del: char| line.split(del).last().map(str::trim).unwrap().to_string();
+    let clean_line = move |line: &str, del: char| {
+        line.split(del)
+            .next_back()
+            .map(str::trim)
+            .unwrap()
+            .to_string()
+    };
 
     // if let Ok(lines) = read_lines(path) {
     let file = File::open(path).unwrap();
@@ -244,16 +249,16 @@ pub fn run_check(
     let python_version: [i32; 3] = get_python_version();
     let str_version = python_version
         .iter()
-        .map(|n| format!("{}", n))
+        .map(|n| format!("{n}"))
         .collect::<Vec<_>>()
         .join(".");
 
     let dist_dirs = get_dist_directories();
 
     if !silent {
-        println!("Avoid {:?}", license_to_avoid);
-        println!("PYTHON VERSION {:}", str_version);
-        println!("Dependencies stored at {:#?}.", dist_dirs);
+        println!("Avoid {license_to_avoid:?}");
+        println!("PYTHON VERSION {str_version:}");
+        println!("Dependencies stored at {dist_dirs:#?}.");
         println!();
     }
 

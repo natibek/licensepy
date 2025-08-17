@@ -33,30 +33,30 @@ pub fn read_config() -> Config {
     }
 
     let toml_str =
-        read_to_string(TOML_FILE).unwrap_or_else(|_| panic!("Failed to read {} file.", TOML_FILE));
+        read_to_string(TOML_FILE).unwrap_or_else(|_| panic!("Failed to read {TOML_FILE} file."));
     let main_table = toml_str.parse::<Table>().unwrap();
 
-    if let Some(licensepy_config) = main_table.get("licensepy") {
-        if let Some(table) = licensepy_config.as_table() {
-            if let Some(to_avoid) = table.get("avoid").and_then(|v| v.as_array()) {
-                let licenses_to_avoid: Vec<String> = to_avoid
-                    .iter()
-                    .filter_map(|v| v.as_str().map(|s| s.to_string()))
-                    .collect();
+    if let Some(licensepy_config) = main_table.get("licensepy")
+        && let Some(table) = licensepy_config.as_table()
+    {
+        if let Some(to_avoid) = table.get("avoid").and_then(|v| v.as_array()) {
+            let licenses_to_avoid: Vec<String> = to_avoid
+                .iter()
+                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                .collect();
 
-                config.avoid = licenses_to_avoid;
-            }
-            if let Some(licensee) = table.get("licensee").and_then(|v| v.as_str()) {
-                config.licensee = Some(licensee.to_string());
-            }
+            config.avoid = licenses_to_avoid;
+        }
+        if let Some(licensee) = table.get("licensee").and_then(|v| v.as_str()) {
+            config.licensee = Some(licensee.to_string());
+        }
 
-            if let Some(year) = table.get("license_year").and_then(|v| v.as_integer()) {
-                config.license_year = year;
-            }
+        if let Some(year) = table.get("license_year").and_then(|v| v.as_integer()) {
+            config.license_year = year;
+        }
 
-            if let Some(header) = table.get("license_header").and_then(|v| v.as_str()) {
-                config.license_header = Some(header.to_string());
-            }
+        if let Some(header) = table.get("license_header").and_then(|v| v.as_str()) {
+            config.license_header = Some(header.to_string());
         }
     }
 

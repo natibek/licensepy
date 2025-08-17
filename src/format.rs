@@ -1,6 +1,7 @@
 use crate::utils::{Config, read_config};
 use chrono::{Datelike, Utc};
 use colored::Colorize;
+use log::debug;
 use rayon::prelude::*;
 use regex::Regex;
 use std::fs::{DirEntry, File, read_dir};
@@ -25,17 +26,7 @@ fn match_license(comment_block: &str, config: &Config) -> LicenseMatchRes {
             .filter(|line| !line.is_empty())
             .collect::<Vec<String>>()
     };
-
-    // let clean_header = |lines: &str| {
-    //     lines
-    //         .lines()
-    //         .map(|line| line.trim_start_matches(COMMENT).trim().to_string())
-    //         .filter(|line| !line.is_empty())
-    //         .collect::<String>()
-    // };
-
     let mut header_template = config.license_header.clone().unwrap();
-    // header_template = header_template.replace("{year}", r"(?<year>\d{4})");
 
     if let Some(licensee) = config.licensee.as_ref() {
         header_template = header_template.replace("{licensee}", licensee);
@@ -44,33 +35,15 @@ fn match_license(comment_block: &str, config: &Config) -> LicenseMatchRes {
     let comments = clean_header(comment_block);
     let templates = clean_header(&header_template);
     let mut years: Vec<i64> = vec![];
-    // let regex = Regex::new(&templates).unwrap();
 
-    // if regex.is_match(&comments) {
-    //     let cur_year = i64::from(Utc::now().year());
-    //     if regex
-    //         .captures_iter(&comments)
-    //         .any(|cap| cap["year"].parse::<i64>().unwrap() != cur_year)
-    //     {
-    //         return LicenseMatchRes::Update;
-    //     } else {
-    //         return LicenseMatchRes::Skip;
-    //     }
-    // } else {
-    //     return LicenseMatchRes::Insert;
-    // }
-
-    // println!(
-    //     "Found header {} expected {}",
-    //     comment_block, header_template
-    // );
+    debug!("Found header {comment_block} expected {header_template}");
 
     if comments.len() != templates.len() {
-        // println!(
-        //     "Different length for headers {} not equal to {}",
-        //     comments.len(),
-        //     templates.len()
-        // );
+        debug!(
+            "Different length for headers {} not equal to {}",
+            comments.len(),
+            templates.len()
+        );
         return LicenseMatchRes::Insert;
     }
 
@@ -79,10 +52,7 @@ fn match_license(comment_block: &str, config: &Config) -> LicenseMatchRes {
         let template_words = template_line.split(" ").collect::<Vec<_>>();
 
         if comment_words.len() != template_words.len() {
-            // println!(
-            //     "Different length for line {:?} not equal to {:?}",
-            //     comment_words, template_words,
-            // );
+            debug!("Different length for line {comment_words:?} not equal to {template_words:?}");
             return LicenseMatchRes::Insert;
         }
 
@@ -90,16 +60,16 @@ fn match_license(comment_block: &str, config: &Config) -> LicenseMatchRes {
             match template_word {
                 "{year}" => {
                     if let Ok(year) = comment_word.parse::<i64>() {
-                        // println!("Parsed year {}", year);
+                        debug!("Parsed year {year}");
                         years.push(year);
                     } else {
-                        // println!("Failed to parse year");
+                        debug!("Failed to parse year");
                         return LicenseMatchRes::Insert;
                     }
                 }
                 word => {
                     if comment_word != word {
-                        // println!("Different words comment {} template {}", comment_word, word);
+                        debug!("Different words comment {comment_word} template {word}");
                         return LicenseMatchRes::Insert;
                     }
                 }
@@ -108,7 +78,7 @@ fn match_license(comment_block: &str, config: &Config) -> LicenseMatchRes {
     }
 
     let cur_year = i64::from(Utc::now().year());
-    // println!("Years found {:?}", years);
+    debug!("Years found {years:?}");
     if years.iter().any(|year| year != &cur_year) {
         LicenseMatchRes::Update
     } else {
@@ -209,7 +179,7 @@ fn format_file(
     let file_path = file.as_path().to_str().unwrap();
     let (found_header, insert_at) = find_first_comment(&f);
     let mut needs_fix = false;
-    match match_license(&found_header, &config) {
+    match match_license(&found_header, config) {
         LicenseMatchRes::Insert => {
             needs_fix = true;
             if !silent {
@@ -251,7 +221,7 @@ fn format_files(
 ) {
     let num_to_fix: i32 = files
         .par_iter()
-        .map(|file| format_file(file, &config, &header, silent, dry_run) as i32)
+        .map(|file| format_file(file, config, &header, silent, dry_run) as i32)
         .sum();
 
     if !silent {
@@ -265,14 +235,14 @@ fn format_files(
 fn format_header(config: &Config) -> String {
     // replace the {year} and {licensee}
     let mut header = config.license_header.as_ref().unwrap().clone();
-    if header.find("{licensee}") != None {
-        if config.licensee == None {
+    if header.contains("{licensee}") {
+        if config.licensee.is_none() {
             println!(
                 "{{licensee}} template found in header but no value provided in config or command line."
             );
             exit(1);
         }
-        header = header.replace("{licensee}", &config.licensee.as_ref().unwrap());
+        header = header.replace("{licensee}", config.licensee.as_ref().unwrap());
     }
 
     header = header.replace("{year}", &config.license_year.to_string());
@@ -292,7 +262,7 @@ fn format_header(config: &Config) -> String {
 }
 
 /// Recursively finds all the python files in a directory.
-fn find_python_files(cur_dir: PathBuf, python_files: &mut Vec<PathBuf>, ingore_dirs: &[Regex; 4]) {
+fn find_python_files(cur_dir: PathBuf, python_files: &mut Vec<PathBuf>, ignore_dirs: &[Regex; 4]) {
     match read_dir(cur_dir) {
         Err(_) => {}
         Ok(files) => files
@@ -301,8 +271,8 @@ fn find_python_files(cur_dir: PathBuf, python_files: &mut Vec<PathBuf>, ingore_d
                 let path = entry.path();
                 let name = entry.file_name().into_string().unwrap();
 
-                if path.is_dir() && !ingore_dirs.iter().any(|re| re.is_match(&name)) {
-                    find_python_files(path, python_files, ingore_dirs);
+                if path.is_dir() && !ignore_dirs.iter().any(|re| re.is_match(&name)) {
+                    find_python_files(path, python_files, ignore_dirs);
                 } else if let Some(ext) = path.extension()
                     && ext == "py"
                 {
@@ -314,14 +284,14 @@ fn find_python_files(cur_dir: PathBuf, python_files: &mut Vec<PathBuf>, ingore_d
 
 /// Run the formatter on the given files
 pub fn run_format(
-    files: &Vec<String>,
+    files: &[String],
     licensee: &Option<String>,
     license_year: &Option<u16>,
     silent: bool,
     dry_run: bool,
 ) {
     let mut config = read_config();
-    if config.license_header == None {
+    if config.license_header.is_none() {
         println!("No license header found in config file.");
         exit(1);
     }
@@ -336,23 +306,37 @@ pub fn run_format(
 
     let header = format_header(&config);
 
-    let files: Vec<PathBuf> = if files.len() > 0 {
+    let files: Vec<PathBuf> = if !files.is_empty() {
         files
-            .into_iter()
+            .iter()
             .map(PathBuf::from)
             .filter(|path| path.exists() && path.extension().unwrap() == "py")
             .collect()
     } else {
         let mut python_files: Vec<PathBuf> = vec![];
-        let ingore_dirs: [Regex; 4] = [
+        let ignore_dirs: [Regex; 4] = [
             Regex::new(r"^dist$").unwrap(),
             Regex::new(r"^__pycache__$").unwrap(),
             Regex::new(r"^.*\.egg-info$").unwrap(),
             Regex::new(r"^\..*$").unwrap(),
         ];
-        find_python_files(PathBuf::from("./"), &mut python_files, &ingore_dirs);
+        find_python_files(PathBuf::from("./"), &mut python_files, &ignore_dirs);
         python_files
     };
 
     format_files(&files, &config, header, silent, dry_run);
+}
+
+#[test]
+fn test_match_license() {
+    let config = Config {
+        license_header: Some("# {year} {licensee}".to_string()),
+        licensee: Some("Acme Corp".to_string()),
+        license_year: 2025,
+        avoid: vec![],
+    };
+
+    let existing = "# random comment\n";
+    let res = match_license(existing, &config);
+    assert!(matches!(res, LicenseMatchRes::Insert));
 }
