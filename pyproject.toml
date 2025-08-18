@@ -33,3 +33,7 @@ Changelog = "https://github.com/natibek/licensepy/blob/main/CHANGELOG"
 
 [tool.maturin]
 bindings = "bin"
+
+
+[tool.licensepy]
+license_header_template = """Copyright of Nati."""

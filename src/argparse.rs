@@ -2,7 +2,7 @@ use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
 #[command(version, about, long_about = None)]
-/// licensepy: Python project dependency license check and license header formating tool.
+/// licensepy: Python project dependency license check and license header checking/formatting tool.
 pub struct Args {
     #[command(subcommand)]
     pub command: Commands,

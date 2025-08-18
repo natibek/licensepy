@@ -50,7 +50,7 @@ pub fn read_config() -> Config {
     let main_table = toml_str.parse::<Table>().unwrap();
 
     // extract the licensepy field from the toml table
-    if let Some(licensepy_config) = main_table.get("licensepy")
+    if let Some(licensepy_config) = main_table.get("tool.licensepy")
         && let Some(table) = licensepy_config.as_table()
     {
         // extract the avoid field
