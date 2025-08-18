@@ -35,7 +35,7 @@ impl Formatter {
     /// The files to update the license header for are:
     /// - the positional command line arguments if available
     /// - otherwise, all the python files recursively found under the cwd excluding
-    ///         *.egg-info/, dist/, __pycache__/, and hidden directories and files.
+    ///   `*.egg-info/`, dist/, __pycache__/, and hidden directories and files.
     ///
     /// Args:
     ///     - files: Python files to run license header formatter on. If any provided, no
