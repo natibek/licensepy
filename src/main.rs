@@ -32,7 +32,6 @@ fn main() {
                 .num_threads(num_threads as usize)
                 .build_global()
                 .unwrap();
-
             run_check(*recursive, *by_package, *ignore_toml, *silent, *fail_print)
         }
 
@@ -52,7 +51,7 @@ fn main() {
                 .unwrap();
 
             let formatter = Formatter::new(files, licensee, license_year, *silent, *dry_run);
-            formatter.format_files();
+            formatter.format_files()
         }
     }
 }

@@ -2,6 +2,7 @@ use crate::metadata::Metadata;
 use colored::Colorize;
 use std::collections::{HashMap, HashSet};
 
+/// Print results of `licensepy check` grouped by package.
 pub fn print_by_package(dependencies: Vec<Metadata>, recursive: bool, fail_print: bool) {
     let mut dep_map: HashMap<String, bool> = HashMap::new();
 
@@ -39,6 +40,7 @@ pub fn print_by_package(dependencies: Vec<Metadata>, recursive: bool, fail_print
     }
 }
 
+/// Print results of `licensepy check` grouped by license.
 pub fn print_by_license(
     dependencies: Vec<Metadata>,
     license_to_avoid: &[String],
