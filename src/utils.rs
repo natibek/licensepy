@@ -4,7 +4,7 @@ use std::path::Path;
 use std::process::Command;
 use toml::Table;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 /// Used for configuring the license check and header check/formatter.
 ///
 /// - avoid: The license types to be flagged by the license check if found.

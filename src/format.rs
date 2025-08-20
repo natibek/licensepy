@@ -11,6 +11,7 @@ use std::process::exit;
 const COMMENT: &str = "#";
 const HASHBANG: &str = "#!";
 
+#[derive(PartialEq, PartialOrd, Debug)]
 enum LicenseCheckRes {
     Missing,
     Found,
@@ -144,7 +145,7 @@ impl Formatter {
         // run the checker to see if the header is missing, found, or outdated
         // and call appropriate function
         match check_license(&found_header, &self.config) {
-            LicenseCheckRes::Missing => {
+            (_, LicenseCheckRes::Missing) => {
                 needs_fix = true;
                 if !self.silent {
                     println!("{}: License header missing.", file_path.red().bold());
@@ -153,12 +154,12 @@ impl Formatter {
                     insert_header(&mut f, &self.header, insert_at);
                 }
             }
-            LicenseCheckRes::Found => {
+            (_, LicenseCheckRes::Found) => {
                 if !self.silent {
                     println!("{}: License header found.", file_path.cyan().bold());
                 }
             }
-            LicenseCheckRes::Outdated => {
+            (replace, LicenseCheckRes::Outdated) => {
                 needs_fix = true;
                 if !self.silent {
                     println!(
@@ -166,9 +167,10 @@ impl Formatter {
                         file_path.bright_yellow().bold()
                     );
                 }
-
+                debug!("Found {found_header}");
+                debug!("Replace {replace}");
                 if !self.dry_run {
-                    update_header(&mut f, &found_header, &self.header);
+                    update_header(&mut f, &replace, &self.header);
                 }
             }
         }
@@ -185,13 +187,13 @@ impl Formatter {
 ///
 /// Returns: The result of the check LicenseCheckRes::{Missing, Outdated, Found}.
 ///
-fn check_license(comment_block: &str, config: &Config) -> LicenseCheckRes {
+fn check_license(comment_block: &str, config: &Config) -> (String, LicenseCheckRes) {
     // Clean license headers by removing # from the beginning and trimming whitespaces
     let clean_header = |lines: &str| {
         lines
             .lines()
             .map(|line| line.trim_start_matches(COMMENT).trim().to_string())
-            .filter(|line| !line.is_empty())
+            // .filter(|line| !line.is_empty())
             .collect::<Vec<String>>()
     };
     // keep track if the year in the license header is outdated.
@@ -208,33 +210,39 @@ fn check_license(comment_block: &str, config: &Config) -> LicenseCheckRes {
     let comments = clean_header(comment_block);
     let templates = clean_header(&header_template);
 
-    debug!("Found header {comment_block} expected {header_template}");
+    debug!("Found header {comment_block} expected {header_template}.");
 
     // If the length of the cleaned headers are different, then the headers are different
-    if comments.len() != templates.len() {
+    let template_num_lines = templates.len();
+    if comments.len() < template_num_lines {
         debug!(
-            "Different length for headers {} not equal to {}",
+            "The found header's length {} is less than the templates {}.",
             comments.len(),
-            templates.len()
+            template_num_lines,
         );
-        return LicenseCheckRes::Missing;
+        return (String::from(""), LicenseCheckRes::Missing);
     }
 
-    // Compare each line of the comment block and template
-    for (comment_line, template_line) in comments.iter().zip(templates) {
+    let mut template_line_num = 0usize;
+    let mut cur_template_line = &templates[template_line_num];
+    let mut found_license_start = 0usize;
+
+    for (idx, comment_line) in comments.iter().enumerate() {
         let comment_words = comment_line.split(" ").collect::<Vec<_>>();
-        let template_words = template_line.split(" ").collect::<Vec<_>>();
+        let template_words = cur_template_line.split(" ").collect::<Vec<_>>();
 
-        // If the number of the words in the template is different
-        // than the in comment line, the headers are different.
         if comment_words.len() != template_words.len() {
-            debug!("Different length for line {comment_words:?} not equal to {template_words:?}");
-            return LicenseCheckRes::Missing;
+            debug!("Length of line {comment_words:?} not equal to {template_words:?}.");
+            // already had found lines of the correct header matching
+            // but matching failed for this line
+            if template_line_num != 0 {
+                return (String::from(""), LicenseCheckRes::Missing);
+            }
+            continue;
         }
-
-        // Go word by word and check if the headers match
-        for (comment_word, template_word) in comment_words.into_iter().zip(template_words) {
-            match template_word {
+        let mut matched_words = 0usize;
+        for (comment_word, template_word) in comment_words.into_iter().zip(&template_words) {
+            match template_word.to_string().as_str() {
                 "{year}" => {
                     // check if the {year} template placeholder matches with a number in
                     // the comment block
@@ -247,28 +255,57 @@ fn check_license(comment_block: &str, config: &Config) -> LicenseCheckRes {
                         }
                     } else {
                         // if parsing fails, then the headers are different.
-                        debug!("Failed to parse year");
-                        return LicenseCheckRes::Missing;
+                        debug!("Failed to parse year.");
+                        // already had found lines of the correct header matching
+                        // but matching failed for this line
+                        if template_line_num != 0 {
+                            return (String::from(""), LicenseCheckRes::Missing);
+                        }
+                        continue;
                     }
                 }
                 word => {
                     // if the words are different then the headers are different.
                     if comment_word != word {
-                        debug!("Different words comment {comment_word} template {word}");
-                        return LicenseCheckRes::Missing;
+                        debug!("Different words comment {comment_word} template {word}.");
+                        // already had found lines of the correct header matching
+                        // but matching failed for this line
+                        if template_line_num != 0 {
+                            return (String::from(""), LicenseCheckRes::Missing);
+                        }
+                        continue;
                     }
                 }
             }
+            matched_words += 1;
+        }
+        if template_line_num == 0 {
+            // This is the line where we started matching the header correctly
+            found_license_start = idx;
+        }
+
+        if matched_words == template_words.len() {
+            template_line_num += 1;
+        }
+        if template_line_num != template_num_lines {
+            cur_template_line = &templates[template_line_num];
+        } else {
+            break;
         }
     }
 
-    // If this is reached, they license header template and the comment block found are the same
-    // up to the year template.
-    if outdated {
-        LicenseCheckRes::Outdated
-    } else {
-        LicenseCheckRes::Found
+    if template_line_num == template_num_lines {
+        if outdated {
+            let found_license_end = found_license_start + template_line_num;
+            let found_header: String = comment_block.lines().collect::<Vec<&str>>()
+                [found_license_start..found_license_end]
+                .join("\n");
+            return (found_header, LicenseCheckRes::Outdated);
+        } else {
+            return (String::from(""), LicenseCheckRes::Found);
+        }
     }
+    (String::from(""), LicenseCheckRes::Missing)
 }
 
 /// Find the first comment block for a Python file and the byte index to potentially insert a
@@ -294,7 +331,6 @@ fn find_first_comment(file: &File) -> (String, usize) {
                 continue;
             } else if line.trim().is_empty() {
                 // line only contains whitespaces
-                insert_at += line.len() + 1;
                 continue;
             } else if line.starts_with(COMMENT) {
                 // the first comment line.
@@ -389,18 +425,25 @@ fn update_header(file: &mut File, exisiting_header: &str, license_header: &str) 
     file.set_len(0).unwrap();
     // move cursor to begining again to avoid strange writing
     file.seek(SeekFrom::Start(0)).unwrap();
+    if !content.ends_with('\n') {
+        debug!("Add new line to end of content");
+        content += "\n";
+    }
 
-    // get the byte index of where the existing header is in the file.
-    // fyi, this will be the same as insert_at.
-    let header_start = content.find(exisiting_header).unwrap();
+    let split_at_idx = content.find(exisiting_header).unwrap();
     // split the content at the start of the header
-    let (before_header, after_header_inclusive) = &content.split_at_checked(header_start).unwrap();
-    // remove the existing header from the content
-    let after_header = &after_header_inclusive[exisiting_header.len()..];
+    let (before_header, after_header_inclusive) = content.split_at_checked(split_at_idx).unwrap();
 
     // Write the content before the header, the new header, then the content after the original header.
     file.write_all(before_header.as_bytes()).unwrap();
+    debug!("License header: <{license_header}>");
     file.write_all(license_header.as_bytes()).unwrap();
+
+    // remove the existing header from the content
+    let after_header = &after_header_inclusive[exisiting_header.len()..];
+    debug!("After header: <{after_header}>");
+    debug!("After header inclusive: <{after_header_inclusive}>");
+
     if after_header.chars().next() == COMMENT.chars().next() {
         file.write_all("\n".as_bytes()).unwrap();
     }
@@ -477,7 +520,14 @@ fn find_python_files(cur_dir: PathBuf, python_files: &mut Vec<PathBuf>, ignore_d
 }
 
 #[test]
-fn test_match_license() {
+fn test_format() {
+    use tempfile::NamedTempFile;
+
+    env_logger::init();
+    let tmp = NamedTempFile::new().unwrap();
+    let path = tmp.path().to_path_buf();
+    let mut tmp = tmp.reopen().unwrap();
+
     let config = Config {
         license_header_template: Some("# {year} {licensee}".to_string()),
         licensee: Some("Acme Corp".to_string()),
@@ -485,7 +535,171 @@ fn test_match_license() {
         avoid: vec![],
     };
 
-    let existing = "# random comment\n";
-    let res = check_license(existing, &config);
-    assert!(matches!(res, LicenseCheckRes::Missing));
+    let header = format_header(&config);
+    assert_eq!("# 2025 Acme Corp\n".to_string(), header);
+
+    let test_formatter = Formatter {
+        files: vec![],
+        header,
+        config: config.clone(),
+        silent: true,
+        dry_run: false,
+    };
+
+    let test_fixtures = [
+        (
+            // 0
+            "",                       // content of the file
+            "",                       // expected comment block extracted from file
+            0,                        // index at which the header would be inserted
+            LicenseCheckRes::Missing, // result of check_license
+            true,                     // result of Formatter.format_file()
+            "# 2025 Acme Corp\n",     // the expected file content of the formatted file
+        ),
+        (
+            // 1
+            "\n\n",
+            "",
+            0,
+            LicenseCheckRes::Missing,
+            true,
+            "# 2025 Acme Corp\n\n\n",
+        ),
+        (
+            // 2
+            "# Comment",
+            "# Comment\n",
+            0,
+            LicenseCheckRes::Missing,
+            true,
+            "# 2025 Acme Corp\n\n# Comment",
+        ),
+        (
+            // 4
+            "\n\n# Comment",
+            "# Comment\n",
+            0,
+            LicenseCheckRes::Missing,
+            true,
+            "# 2025 Acme Corp\n\n\n# Comment",
+        ),
+        (
+            // 4
+            "#!/usr/bin/python\n\n# Comment",
+            "# Comment\n",
+            18,
+            LicenseCheckRes::Missing,
+            true,
+            "#!/usr/bin/python\n# 2025 Acme Corp\n\n# Comment",
+        ),
+        (
+            // 5
+            "#!/usr/bin/python\n\n# 2025 Acme Corp",
+            "# 2025 Acme Corp\n",
+            18,
+            LicenseCheckRes::Found,
+            false,
+            "#!/usr/bin/python\n\n# 2025 Acme Corp",
+        ),
+        (
+            // 6
+            "#!/usr/bin/python\n\n# 2024 Acme Corp",
+            "# 2024 Acme Corp\n",
+            18,
+            LicenseCheckRes::Outdated,
+            true,
+            "#!/usr/bin/python\n\n# 2025 Acme Corp\n\n",
+        ),
+        (
+            // 7
+            "#!/usr/bin/python\n#\n# 2024 Acme Corp\n",
+            "#\n# 2024 Acme Corp\n",
+            18,
+            LicenseCheckRes::Outdated,
+            true,
+            "#!/usr/bin/python\n#\n# 2025 Acme Corp\n\n",
+        ),
+        (
+            // 8
+            "#!/usr/bin/python\n\n# 2024 Acme Corp\n# ",
+            "# 2024 Acme Corp\n# \n",
+            18,
+            LicenseCheckRes::Outdated,
+            true,
+            "#!/usr/bin/python\n\n# 2025 Acme Corp\n\n# \n",
+        ),
+        (
+            // 9
+            "#!/usr/bin/python\n# 2024 Acme Corp\n\n# More Comment",
+            "# 2024 Acme Corp\n",
+            18,
+            LicenseCheckRes::Outdated,
+            true,
+            "#!/usr/bin/python\n# 2025 Acme Corp\n\n\n# More Comment\n",
+        ),
+        (
+            // 10
+            "#!/usr/bin/python\n\n# 2024 Acme Corp\n# Wrong format",
+            "# 2024 Acme Corp\n# Wrong format\n",
+            18,
+            LicenseCheckRes::Outdated,
+            true,
+            "#!/usr/bin/python\n\n# 2025 Acme Corp\n\n# Wrong format\n",
+        ), // insert_header does not add new line to the end of the file
+    ];
+
+    for (
+        idx,
+        (
+            content,
+            expected_comment,
+            expected_insert_at,
+            expected_check_res,
+            expected_format_res,
+            expected_final,
+        ),
+    ) in test_fixtures.into_iter().enumerate()
+    {
+        tmp.seek(SeekFrom::Start(0)).unwrap();
+        tmp.write_all(content.as_bytes()).unwrap();
+        tmp.seek(SeekFrom::Start(0)).unwrap();
+
+        let (first_comment, insert_at) = find_first_comment(&tmp);
+        assert_eq!(
+            expected_comment, first_comment,
+            "[find_first_comment first_comment] Failed for fixture {}.",
+            idx
+        );
+        assert_eq!(
+            expected_insert_at, insert_at,
+            "[find_first_comment insert at] Failed for fixture {}.",
+            idx
+        );
+        let x: Vec<&str> = first_comment.lines().collect();
+        debug!("{x:?}");
+        let (_, check_res) = check_license(&first_comment, &config);
+        assert_eq!(
+            check_res, expected_check_res,
+            "[check license] Failed for fixture {}.",
+            idx
+        );
+        let format_res = test_formatter.format_file(&path);
+        assert_eq!(
+            expected_format_res, format_res,
+            "[format_file format_res] Failed for fixture {}.",
+            idx
+        );
+
+        let mut buffer = String::new();
+        tmp.seek(SeekFrom::Start(0)).unwrap();
+        tmp.read_to_string(&mut buffer).unwrap();
+
+        assert_eq!(
+            expected_final, buffer,
+            "[format_file buffer] Failed for fixture {}.",
+            idx
+        );
+        tmp.set_len(0).unwrap();
+        tmp.seek(SeekFrom::Start(0)).unwrap();
+    }
 }

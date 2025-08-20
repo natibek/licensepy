@@ -197,7 +197,7 @@ fn parse_metadata(
                 // extracts the name of the requirement.
                 let req = clean_line(&req_info, &['<', '>', '=', '~', '(', ';', '!'], true);
 
-                debug!("Requirement {req:?}");
+                debug!("Requirement {req:?}.");
                 requirements.push(req);
             } else if req_info.contains("; python_version") {
                 // if there is a python version stated for the requirement, check that it
@@ -286,7 +286,7 @@ fn meets_python_req(constraint: &str, python_version: &[i32; 3]) -> bool {
 
         let constraint_version = parse_version(version_str, python_version);
         debug!(
-            "Operator {operator:?} | Version_string {version_str:?} | new Version {constraint_version:?}"
+            "Operator {operator:?} | Version_string {version_str:?} | new Version {constraint_version:?}."
         );
 
         match operator {
@@ -349,7 +349,7 @@ pub fn run_check(
         .cloned()
         .flat_map(get_package_dir)
         .collect();
-    debug!("{package_dist:?}");
+    debug!("{package_dist:?}.");
 
     // multithreaded extraction of metadata
     let dependencies: Vec<Metadata> = package_dist
@@ -357,7 +357,7 @@ pub fn run_check(
         .cloned()
         .map(|dist| dist.get_metadata(&python_version, recursive, &license_to_avoid))
         .collect();
-    debug!("{dependencies:?}");
+    debug!("{dependencies:?}.");
 
     let num_dep = dependencies.len();
     let num_bad_license: i32 = dependencies
