@@ -4,7 +4,7 @@ build-backend = "maturin"
 
 [project]
 name = "licensepy"
-version = "1.0.1"
+version = "1.1.0"
 description = "A Rust CLI packaged for Python project dependency license check and license header formatting."
 readme = "README.md"
 authors = [{ name = "Nathnael Bekele", email = "nwtbekele@gmail.com" }]
