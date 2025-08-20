@@ -5,16 +5,18 @@ build-backend = "maturin"
 [project]
 name = "licensepy"
 version = "1.0.1"
-description = "A Rust CLI packaged for Python dependency license check and license header formatting."
+description = "A Rust CLI packaged for Python project dependency license check and license header formatting."
 readme = "README.md"
 authors = [{ name = "Nathnael Bekele", email = "nwtbekele@gmail.com" }]
-maintainers = [
-    {name = "Nathnael (Nati) Bekele"}
-]
+maintainers = [{ name = "Nathnael (Nati) Bekele" }]
 license = "Apache-2.0"
 license-files = ["LICENSE"]
 keywords = [
-    "license", "license header", "license header formatter", "license check", "project dependency",
+    "license",
+    "license header",
+    "license header formatter",
+    "license check",
+    "project dependency",
 ]
 classifiers = [
     "Programming Language :: Rust",
@@ -33,7 +35,6 @@ Changelog = "https://github.com/natibek/licensepy/blob/main/CHANGELOG"
 
 [tool.maturin]
 bindings = "bin"
-
 
 [tool.licensepy]
 license_header_template = """Copyright of Nati."""
