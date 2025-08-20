@@ -1,4 +1,5 @@
-# licensepy: Python Depedency License Check and License Header Formating.
+# licensepy
+## Python Depedency License Check and License Header Formating.
 
 **_licensepy_** is a Python dependency license check and license header check/format library written in Rust. This package has recursive dependency checks that are not offered by many existing license check libraries. By default, the output will group packages by their licenses.
 
