@@ -41,6 +41,7 @@ pub fn read_config() -> Config {
 
     let mut config = Config::default();
     if !Path::new(TOML_FILE).exists() {
+        println!("pyproject.toml file not found in current directory.");
         return config;
     }
 
@@ -50,8 +51,9 @@ pub fn read_config() -> Config {
     let main_table = toml_str.parse::<Table>().unwrap();
 
     // extract the licensepy field from the toml table
-    if let Some(licensepy_config) = main_table.get("tool.licensepy")
-        && let Some(table) = licensepy_config.as_table()
+    // now you have the [tool.licensepy] table
+    if let Some(tool) = main_table.get("tool").and_then(|v| v.as_table())
+        && let Some(table) = tool.get("licensepy").and_then(|v| v.as_table())
     {
         // extract the avoid field
         if let Some(to_avoid) = table.get("avoid").and_then(|v| v.as_array()) {
@@ -80,7 +82,6 @@ pub fn read_config() -> Config {
             config.license_header_template = Some(header.to_string());
         }
     }
-
     config
 }
 
