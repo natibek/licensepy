@@ -174,8 +174,7 @@ fn parse_metadata(
 
     let file = File::open(path).unwrap();
     for line in io::BufReader::new(file).lines().map_while(Result::ok) {
-        if line.starts_with("License: ")
-            || line.starts_with("License-Expression: ")
+        if line.starts_with("License-Expression: ")
             || line.starts_with("Classifier: License :: OSI Approved :: ")
         {
             // handling cases like => License: BSD and License-Expression: BSD or
