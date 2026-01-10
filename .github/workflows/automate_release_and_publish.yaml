@@ -30,7 +30,7 @@ jobs:
           command: publish
           args: --skip-existing
         env:
-          MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_API_KEY }}
+          MATURIN_PYPI_TOKEN: ${{ secrets.PYPI_PSWRD }}
 
   release:
     name: Publish release on GitHub
