@@ -105,9 +105,9 @@ fn get_package_dir(dist_dir: String) -> Vec<DistType> {
 /// Returns: List of the strings (paths) where distributions can be found.
 pub fn get_dist_directories() -> Vec<String> {
     // parse the output of `python3 -m site` to find the dist packages
-    let output = Command::new("sh")
-        .arg("-c")
-        .arg("python3 -m site")
+    let output = Command::new("python3")
+        .arg("-m")
+        .arg("site")
         .output()
         .expect("Error running `python3 -m site`. Make sure `python3` installation is valid");
 
