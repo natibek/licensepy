@@ -1,0 +1,25 @@
+name: licensepy # you probably want to 'snapcraft register <name>'
+base: core24
+version: '1.1.2'
+summary: Python Depedency License Check and License Header Formating
+description: |
+  licensepy is a Python dependency license check and license header check/format
+  library written in Rust. This package has recursive dependency checks that are
+  not offered by many existing license check libraries. By default, the output
+  will group packages by their licenses.
+
+grade: devel # must be 'stable' to release into candidate/stable channels
+confinement: devmode # use 'strict' once you have the right plugs and slots
+
+parts:
+  licensepy:
+    plugin: rust
+    source: .
+
+apps:
+  licensepy:
+    command: bin/licensepy
+    plugs:
+      - home
+
+
